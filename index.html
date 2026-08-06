@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ClimaFlux ERP 0.3.0</title>
+  <style>
+    :root { color-scheme: light dark; font-family: Inter, system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #eef3f1; color: #16322c; }
+    main { width: min(680px, calc(100% - 32px)); padding: 40px; background: #fff; border: 1px solid #dce6e2; border-radius: 24px; box-shadow: 0 20px 60px rgba(16, 49, 42, .12); }
+    h1 { margin: 0 0 12px; font-size: clamp(2rem, 6vw, 3.8rem); line-height: .95; }
+    p { color: #5d716c; line-height: 1.65; }
+    .progress { height: 10px; margin-top: 24px; overflow: hidden; border-radius: 999px; background: #dce6e2; }
+    .progress span { display: block; width: 12%; height: 100%; border-radius: inherit; background: #19715f; animation: loading 1.2s ease-in-out infinite alternate; }
+    code { padding: .15em .4em; border-radius: 6px; background: #eef3f1; }
+    .error { color: #a32d2d; white-space: pre-wrap; }
+    @keyframes loading { to { width: 96%; } }
+    @media (prefers-color-scheme: dark) { body { background:#101b18; color:#f3f7f5 } main { background:#172621; border-color:#29433a } p { color:#a9bcb6 } code,.progress { background:#29433a } }
+  </style>
+</head>
+<body>
+  <main>
+    <p>ClimaFlux ERP · versão 0.3.0</p>
+    <h1>Carregando o sistema…</h1>
+    <p id="status">Reconstruindo e validando os arquivos da aplicação.</p>
+    <div class="progress" aria-hidden="true"><span></span></div>
+    <p class="error" id="error" role="alert"></p>
+    <noscript>Ative o JavaScript ou execute <code>npm run unpack</code>.</noscript>
+  </main>
+  <script>
+    const EXPECTED_SHA256 = '528555dd66740baa9f83de81269f4360a70d2ca02096596d37ee4bd15fbe180d';
+    const archiveRoot = '.bootstrap';
+
+    async function fetchText(name) {
+      const response = await fetch(`${archiveRoot}/${name}`);
+      if (!response.ok) throw new Error(`Não foi possível carregar ${name}.`);
+      return response.text();
+    }
+
+    function fromBase64(value) {
+      const clean = value.replace(/\s/g, '');
+      const output = new Uint8Array(clean.length * 3 / 4);
+      let position = 0;
+      for (let index = 0; index < clean.length; index += 32768) {
+        const binary = atob(clean.slice(index, index + 32768));
+        for (let byte = 0; byte < binary.length; byte += 1) output[position++] = binary.charCodeAt(byte);
+      }
+      return output.slice(0, position);
+    }
+
+    async function sha256(bytes) {
+      const digest = await crypto.subtle.digest('SHA-256', bytes);
+      return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+    }
+
+    function parseTar(bytes) {
+      const files = new Map();
+      const decoder = new TextDecoder();
+      let offset = 0;
+      while (offset + 512 <= bytes.length) {
+        const header = bytes.slice(offset, offset + 512);
+        if (header.every(byte => byte === 0)) break;
+        const text = (start, end) => decoder.decode(header.slice(start, end)).replace(/\0.*$/, '');
+        const rawName = text(0, 100);
+        const prefix = text(345, 500);
+        const name = `${prefix ? `${prefix}/` : ''}${rawName}`.replace(/^\.\//, '');
+        const size = Number.parseInt(text(124, 136).trim() || '0', 8);
+        const start = offset + 512;
+        files.set(name, bytes.slice(start, start + size));
+        offset = start + Math.ceil(size / 512) * 512;
+      }
+      return files;
+    }
+
+    async function buildArchive() {
+      const chunks = [];
+      for (let index = 1; index <= 18; index += 1) chunks.push(await fetchText(`chunk-${String(index).padStart(2, '0')}.b64`));
+      let encoded19 = '';
+      for (let index = 0; index <= 6; index += 1) encoded19 += await fetchText(`chunk-19y-${String(index).padStart(2, '0')}.b64`);
+      chunks.push(new TextDecoder().decode(fromBase64(encoded19)));
+      for (let index = 20; index <= 23; index += 1) chunks.push(await fetchText(`chunk-${String(index).padStart(2, '0')}.b64`));
+      return fromBase64(chunks.join(''));
+    }
+
+    async function launch() {
+      if (!('DecompressionStream' in window)) throw new Error('Este navegador não oferece suporte à descompactação necessária. Execute npm run unpack no projeto.');
+      document.getElementById('status').textContent = 'Validando a integridade do pacote…';
+      const archive = await buildArchive();
+      const actual = await sha256(archive);
+      if (actual !== EXPECTED_SHA256) throw new Error(`Falha de integridade do pacote. SHA-256 recebido: ${actual}`);
+
+      document.getElementById('status').textContent = 'Montando a interface…';
+      const decompressed = await new Response(new Blob([archive]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+      const files = parseTar(new Uint8Array(decompressed));
+      const decode = path => new TextDecoder().decode(files.get(path));
+      let html = decode('index.html');
+      html = html.replace('<link rel="manifest" href="manifest.webmanifest">', '');
+      html = html.replace('<link rel="stylesheet" href="styles.css">', `<style>${decode('styles.css')}</style>`);
+      html = html.replace(/<script src="([^"]+)"><\/script>/g, (_, path) => `<script>${decode(path).replace(/<\/script>/gi, '<\\/script>')}<\/script>`);
+      document.open();
+      document.write(html);
+      document.close();
+    }
+
+    launch().catch(error => {
+      document.querySelector('.progress').remove();
+      document.getElementById('status').textContent = 'Não foi possível iniciar automaticamente.';
+      document.getElementById('error').textContent = `${error.message}\n\nAbra o projeto por um servidor local e não diretamente por file://. Alternativa: npm run unpack`;
+      console.error(error);
+    });
+  </script>
+</body>
+</html>

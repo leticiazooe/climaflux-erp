@@ -1,0 +1,45 @@
+name: Release quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts
+
+      - name: Rebuild verified public release
+        run: npm run build:public
+
+      - name: Verify required assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s public/index.html
+          test -s public/styles.css
+          test -s public/app.js
+          test -s public/domain.js
+          test -s public/manifest.webmanifest
+          test -s public/sw.js
+          test -s public/icon.svg
+          grep -q 'ClimaFlux' public/index.html
+          grep -q '0.4.0' public/manifest.webmanifest
+          echo 'ClimaFlux ERP v0.4.0 release validated.'

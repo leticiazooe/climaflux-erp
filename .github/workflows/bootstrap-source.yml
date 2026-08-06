@@ -1,9 +1,10 @@
 name: Bootstrap ClimaFlux source
 
 on:
-  push:
+  pull_request:
+    types: [opened, reopened, synchronize]
     paths:
-      - ".bootstrap/READY"
+      - ".bootstrap/READY-PR"
   workflow_dispatch:
 
 permissions:
@@ -11,11 +12,13 @@ permissions:
 
 jobs:
   publish-source:
+    if: github.event_name == 'workflow_dispatch' || github.event.action == 'opened' || github.event.action == 'reopened'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout publication branch
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
 
       - name: Reconstruct and verify source archive
@@ -45,7 +48,7 @@ jobs:
           rm -rf .bootstrap
           rm -f .github/workflows/bootstrap-source.yml
 
-      - name: Commit project
+      - name: Commit project to publication branch
         shell: bash
         run: |
           set -euo pipefail
@@ -57,4 +60,4 @@ jobs:
             exit 0
           fi
           git commit -m "feat: publish ClimaFlux ERP v0.3.0"
-          git push
+          git push origin "HEAD:${{ github.head_ref }}"

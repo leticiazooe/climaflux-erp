@@ -1,35 +1,49 @@
 import { createHash } from 'node:crypto';
 import { gunzipSync } from 'node:zlib';
-import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve, sep } from 'node:path';
 
 const ROOT = resolve(process.cwd());
-const RELEASE_DIR = resolve(ROOT, '.release-v050');
+const RELEASE_DIR = resolve(ROOT, '.release-v060');
 const OUTPUT_DIR = resolve(ROOT, 'public');
-const EXPECTED_ARCHIVE_SHA256 = 'c16df5ef402bb1146f0638da5d939d4bb20252ff0028f1b33a2bbfd295387d7d';
-const EXPECTED_PART_SHA1 = [
-  '2400befbdc2583b2c21321a86ee8c97a0d7fdaf6',
-  '469e7953490e2422b0e3e1e709c1eadb9fb55c48',
-  '6ccb770207260e83e4cb9b8a58a6f00cdbafed71',
-  '60ae7364be93fc1340665350a2cfca64bc351170',
-  'b196d721ac386edea6ad24f0e8085a42f62d5ebc',
-  '74844a6d11d1b739cd9573016e69b2c1ed5113b9',
-  '9e83fa7e75334cd26e5e63997a225ea29349b944',
-  '21b212d16ff3a25c15d4a7e0cc6adc3e95353fe9',
-  '4e67a8a41c2d72db8eb5292eca0e6ab1fbacae72',
-  '54941f00b3a877928c634410722b673cec9894cc',
-  '7aaffb4be5f7bd77428ede471ec317834f6ecdae',
-  'ff5e1aab2debddbcb4cf52a56339cd1d7d224586',
-  'd2805338f4f9b638fe63c94fb1387f53de12019d',
-  '2e3f49f9b8ea82e338da10b5c469e8fc872427b1',
-  'c3b332db5b4ceab4996cf0834dfd309a9de49971',
-  '8b3d3f7fed58da84ad461da75bf843f277ccb40e',
-  '7dbda7956aa68935ccc8243b89dc8ad8b5c4595f',
-  '18830b7552c5402e4cfe18c368167439543a0756',
-  '653cd1d5453ab6bd6dd93bdbf17cc4fc145fad5d',
-  '091bd9fe71a7c9a704c89845dfdcabd1f3832622',
-  '707edf7333186724f9b97877be9ad5f0cf690337',
-  '3362a613193aa5c86ad7b1fa3760c50df3c97eb8',
+const EXPECTED_ARCHIVE_SHA256 = '276dc082e046d202aeab91b807ee3bba9b20a403eba0187163f14e107b3750a5';
+const EXPECTED_PARTS = [
+  ['part-00.b64', '78fe38d2442d6557b2e51f6c7e984d166a81d920'],
+  ['part-01.b64', 'c6a9553b290ffe83a6db14704e0299e5c5ee5cb5'],
+  ['part-02.b64', 'a72d044405624fc265a97835d9c383987ed33f3b'],
+  ['part-03.b64', 'db54805e874432daf944d490ac09da4be58c35ef'],
+  ['part-04.b64', '90c4ec557662663f432c36d21a64d749dd9076cc'],
+  ['part-05.b64', '915959247ade3619ebf238f34dab3c306ecb64c1'],
+  ['part-06.b64', 'bb93fa08140a25c07c3ca85485c917ca1bf34699'],
+  ['part-07.b64', '943676681b33f7cd898b6f8c1a3321eb13c4cd61'],
+  ['part-08.b64', '6116c1af545bec858a8ac6b471b3773934093d59'],
+  ['part-09.b64', '3458ce6daeec2f9414cb3bf7616b36e3e7e0c0eb'],
+  ['part-10a.b64', '9134478c5d2ec43589ce35ffc32755f7f5242aeb'],
+  ['part-10b.b64', '394e720786c012e89224d9c5d4875f500dee4a73'],
+  ['part-11.b64', '779bcfb6473e2d34c86c3a91632970c9063e6c03'],
+  ['part-12.b64', 'fc0b54ba2c3255c5a693a2ccf4210b9e2fa29bd6'],
+  ['part-13.b64', 'e2b9ded5f386ffe86d3da022099499aae093fdfe'],
+  ['part-14.b64', '5f0705f5e0af1b837f40d8e9c3d13afaa56894a6'],
+  ['part-15.b64', '5f6362090698f7d8bb3d49af1d6d3d78dd8bc40f'],
+  ['part-16.b64', '0fcbdc07252141c9b0cf956f404aa03d187c7f4c'],
+  ['part-17.b64', '2cb3d7f52ab59d6daf79e8b8a0b7371dbe6511c1'],
+  ['part-18.b64', '453a53ba4271dcf22d37fdf9778f31623675c9b8'],
+  ['part-19.b64', 'f8ca1db72aa04cb836390996bfd47f1e6ef73595'],
+  ['part-20.b64', '2dc1c98a801867dc0962d1dbe7335e1edcbe0afe'],
+  ['part-21.b64', '1dfe0cf58497b1df855133de9c56083fe1682680'],
+  ['part-22a.b64', '9b823267b28019ff820d153717f9c2b97e47e6a7'],
+  ['part-22b.b64', '9dd767838b468b92e2ec7223cab04fbd9ebd2add'],
+  ['part-23.b64', '7fade86fb25b776606eb115953ed6c64baceda72'],
+  ['part-24.b64', 'ae8a94af4273ff4741f0fe1f6bb3cc40cecfd19a'],
+];
+const REQUIRED_ASSETS = [
+  'app.js',
+  'domain.js',
+  'icon.svg',
+  'index.html',
+  'manifest.webmanifest',
+  'styles.css',
+  'sw.js',
 ];
 
 function gitBlobSha1(buffer) {
@@ -38,21 +52,12 @@ function gitBlobSha1(buffer) {
 }
 
 async function rebuildArchive() {
-  const files = (await readdir(RELEASE_DIR))
-    .filter((name) => /^part-\d{2}\.b64$/.test(name))
-    .sort();
-
-  if (files.length !== EXPECTED_PART_SHA1.length) {
-    throw new Error(`Pacote incompleto: esperadas ${EXPECTED_PART_SHA1.length} partes, recebidas ${files.length}.`);
-  }
-
   const encoded = [];
-  for (const [index, name] of files.entries()) {
+  for (const [name, expectedSha] of EXPECTED_PARTS) {
     const raw = await readFile(resolve(RELEASE_DIR, name));
-    const actualPartSha = gitBlobSha1(raw);
-    const expectedPartSha = EXPECTED_PART_SHA1[index];
-    if (actualPartSha !== expectedPartSha) {
-      throw new Error(`Parte corrompida: ${name}. Esperado ${expectedPartSha}, recebido ${actualPartSha}.`);
+    const actualSha = gitBlobSha1(raw);
+    if (actualSha !== expectedSha) {
+      throw new Error(`Parte corrompida: ${name}. Esperado ${expectedSha}, recebido ${actualSha}.`);
     }
     encoded.push(raw.toString('utf8'));
   }
@@ -74,7 +79,7 @@ async function extractTar(tarBuffer) {
   await rm(OUTPUT_DIR, { recursive: true, force: true });
   await mkdir(OUTPUT_DIR, { recursive: true });
   let offset = 0;
-  let files = 0;
+  const extracted = [];
 
   while (offset + 512 <= tarBuffer.length) {
     const header = tarBuffer.subarray(offset, offset + 512);
@@ -89,24 +94,35 @@ async function extractTar(tarBuffer) {
     const dataEnd = dataStart + size;
 
     if (name && type !== '5') {
+      if (!REQUIRED_ASSETS.includes(name)) {
+        throw new Error(`Arquivo inesperado no release público: ${name}`);
+      }
       const target = resolve(OUTPUT_DIR, name);
       if (!target.startsWith(`${OUTPUT_DIR}${sep}`) && target !== OUTPUT_DIR) {
         throw new Error(`Caminho inseguro no release: ${name}`);
       }
       await mkdir(dirname(target), { recursive: true });
       await writeFile(target, tarBuffer.subarray(dataStart, dataEnd));
-      files += 1;
+      extracted.push(name);
     }
     offset = dataStart + Math.ceil(size / 512) * 512;
   }
-  return files;
+
+  const missing = REQUIRED_ASSETS.filter((asset) => !extracted.includes(asset));
+  if (missing.length) {
+    throw new Error(`Assets obrigatórios ausentes: ${missing.join(', ')}.`);
+  }
+  if (extracted.length !== REQUIRED_ASSETS.length) {
+    throw new Error(`Quantidade inesperada de assets: ${extracted.length}.`);
+  }
+  return extracted.length;
 }
 
 try {
-  console.log('Preparando ClimaFlux ERP v0.5.0...');
+  console.log('Preparando ClimaFlux ERP v0.6.0...');
   const archive = await rebuildArchive();
-  const files = await extractTar(gunzipSync(archive));
-  console.log(`Release validado: ${files} arquivos publicados em ${OUTPUT_DIR}.`);
+  const count = await extractTar(gunzipSync(archive));
+  console.log(`ClimaFlux ERP v0.6.0 validado: ${count} arquivo(s) em ${OUTPUT_DIR}.`);
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;

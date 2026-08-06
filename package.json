@@ -7,7 +7,12 @@
   "scripts": {
     "unpack": "node scripts/unpack.mjs",
     "serve": "python3 -m http.server 8080",
-    "start": "npm run serve"
+    "start": "npm run serve",
+    "preview": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "4.119.0"
   },
   "engines": {
     "node": ">=18"

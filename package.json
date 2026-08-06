@@ -1,12 +1,12 @@
 {
   "name": "climaflux-erp",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "ERP demonstrativo para assistência técnica em ar-condicionado e refrigeração.",
   "type": "module",
   "scripts": {
-    "unpack": "node scripts/unpack.mjs",
-    "serve": "python3 -m http.server 8080",
+    "build:public": "node scripts/build-public.mjs",
+    "serve": "npm run build:public && python3 -m http.server 8080 --directory public",
     "start": "npm run serve",
     "preview": "wrangler dev",
     "deploy": "wrangler deploy"

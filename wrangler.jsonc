@@ -8,7 +8,7 @@
   "build": {
     "command": "node scripts/build-public.mjs",
     "watch_dir": [
-      ".release-v050",
+      ".release-v060",
       "scripts"
     ]
   },

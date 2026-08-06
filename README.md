@@ -1,8 +1,30 @@
 # ClimaFlux ERP
 
-MVP+ demonstrativo **v0.3.0** para empresas de assistência técnica em ar-condicionado e refrigeração, integrando ordens de serviço, operação móvel, agenda, clientes, equipamentos, contratos preventivos, orçamentos, vendas, estoque, compras e financeiro.
+ERP demonstrativo **v0.4.0** para empresas de assistência técnica em ar-condicionado e refrigeração. O produto integra atendimento, operação de campo, agenda, clientes, equipamentos, contratos preventivos, orçamentos, vendas, estoque, compras e financeiro.
 
-> **ClimaFlux ERP** é um nome provisório de demonstração. A disponibilidade jurídica e comercial da marca não foi validada.
+> **ClimaFlux ERP** é um nome provisório de demonstração. A disponibilidade jurídica e comercial da marca ainda não foi validada.
+
+## Novidades da v0.4.0
+
+- PWA instalável no computador e no celular.
+- Shell da aplicação disponível offline após o primeiro acesso.
+- Indicador de conexão online/offline.
+- Sessões demonstrativas com seis perfis de usuário.
+- Controle de visualização e ações por perfil (RBAC).
+- Área do técnico limitada às próprias ordens e agenda.
+- Persistência local migrada para a estrutura da v0.4.0.
+- Deploy Cloudflare com pacote versionado e validação SHA-256.
+
+## Perfis disponíveis
+
+- Administrador
+- Atendimento
+- Técnico
+- Estoque
+- Financeiro
+- Gestor
+
+O usuário pode alternar o perfil na própria interface para demonstrar as permissões.
 
 ## Recursos implementados
 
@@ -18,11 +40,10 @@ MVP+ demonstrativo **v0.3.0** para empresas de assistência técnica em ar-condi
 - Consumo de materiais diretamente na OS.
 - Exportações CSV, tema claro/escuro e persistência local.
 
-## Executar a demonstração
-
-O `index.html` reconstrói o pacote, confere seu SHA-256 e inicia a aplicação no navegador. Por segurança do navegador, use um servidor local:
+## Executar localmente
 
 ```bash
+npm install
 npm run serve
 ```
 
@@ -32,67 +53,37 @@ Depois acesse:
 http://localhost:8080
 ```
 
-Também funciona com qualquer servidor HTTP estático, incluindo GitHub Pages.
+O comando reconstrói a pasta `public`, valida o release e inicia um servidor HTTP.
 
-## Materializar o código-fonte
-
-O código-fonte completo, documentação, testes, schema PostgreSQL e contrato OpenAPI estão armazenados no pacote verificado dentro de `.bootstrap`.
-
-Para extrair tudo em uma pasta legível chamada `source`:
+## Validar o release
 
 ```bash
-npm run unpack
-cd source
-npm run quality
+npm run build:public
 ```
 
-O extrator valida o SHA-256 abaixo antes de escrever qualquer arquivo:
+O build confere cada fragmento e o SHA-256 final antes de extrair os arquivos públicos. O release esperado é:
 
 ```text
-528555dd66740baa9f83de81269f4360a70d2ca02096596d37ee4bd15fbe180d
+34804cc826c0cced08375ff288b0de9ba7bcee723aa538cf6c5e5d44c9b9f3f0
 ```
 
-## Conteúdo do pacote
+## Publicação
 
-```text
-source/
-├── index.html
-├── styles.css
-├── app.js
-├── app-parts/
-├── domain.js
-├── tests/
-├── database/schema.sql
-├── openapi.yaml
-├── scripts/
-├── docs/
-│   ├── PRODUCT.md
-│   ├── REQUIREMENTS.md
-│   ├── UX_UI.md
-│   ├── ARCHITECTURE.md
-│   ├── DATA_MODEL.md
-│   ├── SECURITY.md
-│   ├── BACKLOG.md
-│   ├── QUALITY.md
-│   ├── DEPLOYMENT.md
-│   ├── RISKS.md
-│   ├── TRACEABILITY.md
-│   └── adrs/
-├── CHANGELOG.md
-└── VERSION
+```bash
+npm run deploy
 ```
 
-## Validação
+O Wrangler executa `scripts/build-public.mjs` e publica somente a pasta `public` no Cloudflare Workers Static Assets.
 
-A versão foi validada localmente com:
+## Validação realizada
 
-- 16 testes automatizados de domínio;
-- análise estrutural e sintática;
-- OpenAPI 3.1;
-- smoke tests desktop e mobile;
-- fluxo de orçamento, compra, venda, estoque e OS;
-- atendimento de campo com checklist e assinatura;
-- geração de OS preventiva por contrato.
+- 19 testes automatizados de domínio e autorização.
+- Análise estrutural e sintática.
+- Smoke tests desktop e mobile.
+- Fluxos de OS, orçamento, compra, venda, estoque e contratos.
+- Alternância entre administrador e técnico.
+- Verificação das restrições de navegação e ações por perfil.
+- Validação do manifesto e do service worker.
 
 ## Arquitetura de produção proposta
 
@@ -101,6 +92,6 @@ A versão foi validada localmente com:
 - PostgreSQL com isolamento por empresa (`tenant_id`).
 - Object storage para fotos, laudos, anexos e assinaturas.
 - Filas para notificações, PDFs e integrações.
-- RBAC, auditoria, observabilidade, backups e controles LGPD.
+- Autenticação real, RBAC no servidor, auditoria, observabilidade, backups e controles LGPD.
 
-O protótipo atual utiliza JavaScript sem dependências e `localStorage` para permitir demonstração imediata. Ele não substitui os controles necessários para produção.
+O protótipo atual utiliza JavaScript sem dependências e `localStorage` para demonstração imediata. As sessões e permissões são simuladas no cliente e não substituem autenticação e autorização de produção.

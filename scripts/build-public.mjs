@@ -4,28 +4,32 @@ import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve, sep } from 'node:path';
 
 const ROOT = resolve(process.cwd());
-const RELEASE_DIR = resolve(ROOT, '.release-v040');
+const RELEASE_DIR = resolve(ROOT, '.release-v050');
 const OUTPUT_DIR = resolve(ROOT, 'public');
-const EXPECTED_ARCHIVE_SHA256 = '34804cc826c0cced08375ff288b0de9ba7bcee723aa538cf6c5e5d44c9b9f3f0';
+const EXPECTED_ARCHIVE_SHA256 = 'c16df5ef402bb1146f0638da5d939d4bb20252ff0028f1b33a2bbfd295387d7d';
 const EXPECTED_PART_SHA1 = [
-  '9d00f9fb0017d812d12ec8c5b5129e8fd0aef684',
-  '8bd9ab5363da9d09389bd98c47d93aad77759897',
-  'ee2e5a9cdb2a299e2ef07d2ce9255f4176a9a6be',
-  '3bac5104ecd06795cbb2241e2141ce05080b731e',
-  '480a383bb6c5f38c19d6c4438023a848a1d6931c',
-  'c3413bdd285248c618ed8e91d1bc90a165ff65d7',
-  '0ea8459b5b4618ec2f83f91f3f4e9a3c83336dbc',
-  '16ce3c3b7dfe0913a30a6892f411494807bf416c',
-  'c5314d23f7ae97a3bddb4baed11512c67b7ff5c6',
-  '2dd3db52ad97741143b4a9a5d69416d32159a7ff',
-  '426198e2b3013304a211f1711e9e548775e51825',
-  '1e49d54cab68d0f8310f433f771839e55f6207e1',
-  '2251d95c8c9684916ed9abe938392c1757e73ec3',
-  '7dc611d768b2c3fcb5c5b8b22b9b8206f4634859',
-  '10f2e5abb78135c97dc83727c766763372cb1bcf',
-  'ed99295b561b95f00c9d16debd30fa43ef7998ca',
-  '3b7d7b55084e58add20041aabb761764f3b4098b',
-  '8fe214ec9c94a98d364811a0d19cb400cc755d85',
+  '2400befbdc2583b2c21321a86ee8c97a0d7fdaf6',
+  '469e7953490e2422b0e3e1e709c1eadb9fb55c48',
+  '6ccb770207260e83e4cb9b8a58a6f00cdbafed71',
+  '60ae7364be93fc1340665350a2cfca64bc351170',
+  'b196d721ac386edea6ad24f0e8085a42f62d5ebc',
+  '74844a6d11d1b739cd9573016e69b2c1ed5113b9',
+  '9e83fa7e75334cd26e5e63997a225ea29349b944',
+  '21b212d16ff3a25c15d4a7e0cc6adc3e95353fe9',
+  '4e67a8a41c2d72db8eb5292eca0e6ab1fbacae72',
+  '54941f00b3a877928c634410722b673cec9894cc',
+  '7aaffb4be5f7bd77428ede471ec317834f6ecdae',
+  'ff5e1aab2debddbcb4cf52a56339cd1d7d224586',
+  'd2805338f4f9b638fe63c94fb1387f53de12019d',
+  '2e3f49f9b8ea82e338da10b5c469e8fc872427b1',
+  'c3b332db5b4ceab4996cf0834dfd309a9de49971',
+  '8b3d3f7fed58da84ad461da75bf843f277ccb40e',
+  '7dbda7956aa68935ccc8243b89dc8ad8b5c4595f',
+  '18830b7552c5402e4cfe18c368167439543a0756',
+  '653cd1d5453ab6bd6dd93bdbf17cc4fc145fad5d',
+  '091bd9fe71a7c9a704c89845dfdcabd1f3832622',
+  '707edf7333186724f9b97877be9ad5f0cf690337',
+  '3362a613193aa5c86ad7b1fa3760c50df3c97eb8',
 ];
 
 function gitBlobSha1(buffer) {
@@ -99,7 +103,7 @@ async function extractTar(tarBuffer) {
 }
 
 try {
-  console.log('Preparando ClimaFlux ERP v0.4.0...');
+  console.log('Preparando ClimaFlux ERP v0.5.0...');
   const archive = await rebuildArchive();
   const files = await extractTar(gunzipSync(archive));
   console.log(`Release validado: ${files} arquivos publicados em ${OUTPUT_DIR}.`);

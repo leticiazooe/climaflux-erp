@@ -5,8 +5,15 @@
   "observability": {
     "enabled": true
   },
+  "build": {
+    "command": "node scripts/unpack.mjs",
+    "watch_dir": [
+      ".bootstrap",
+      "scripts"
+    ]
+  },
   "assets": {
-    "directory": ".",
+    "directory": "./source",
     "not_found_handling": "single-page-application"
   }
 }

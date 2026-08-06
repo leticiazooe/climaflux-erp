@@ -1,5 +1,0 @@
-# Publish only the browser launcher and its verified source package.
-*
-!index.html
-!.bootstrap/
-!.bootstrap/**

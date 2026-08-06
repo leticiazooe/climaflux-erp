@@ -6,14 +6,14 @@
     "enabled": true
   },
   "build": {
-    "command": "node scripts/unpack.mjs",
+    "command": "node scripts/build-public.mjs",
     "watch_dir": [
-      ".bootstrap",
+      ".release-v040",
       "scripts"
     ]
   },
   "assets": {
-    "directory": "./source",
+    "directory": "./public",
     "not_found_handling": "single-page-application"
   }
 }

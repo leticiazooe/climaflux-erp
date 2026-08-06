@@ -29,7 +29,7 @@ jobs:
       - name: Rebuild verified public release
         run: npm run build:public
 
-      - name: Verify required assets
+      - name: Verify required assets and v0.6.0 features
         shell: bash
         run: |
           set -euo pipefail
@@ -41,8 +41,8 @@ jobs:
           test -s public/sw.js
           test -s public/icon.svg
           grep -q 'ClimaFlux' public/index.html
-          grep -q '0.5.0' public/manifest.webmanifest
-          grep -q 'companySelect' public/app.js
-          grep -q 'userSelect' public/app.js
-          grep -q 'auditoria' public/app.js
-          echo 'ClimaFlux ERP v0.5.0 release validated.'
+          grep -q '0.6.0' public/manifest.webmanifest
+          grep -q 'Despacho e SLA' public/app.js
+          grep -q 'Portal do cliente' public/app.js
+          grep -q 'sla' public/domain.js
+          echo 'ClimaFlux ERP v0.6.0 release validated.'

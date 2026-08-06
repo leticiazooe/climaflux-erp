@@ -1,0 +1,15 @@
+{
+  "name": "climaflux-erp",
+  "version": "0.3.0",
+  "private": true,
+  "description": "ERP demonstrativo para assistência técnica em ar-condicionado e refrigeração.",
+  "type": "module",
+  "scripts": {
+    "unpack": "node scripts/unpack.mjs",
+    "serve": "python3 -m http.server 8080",
+    "start": "npm run serve"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

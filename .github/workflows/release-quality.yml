@@ -41,5 +41,8 @@ jobs:
           test -s public/sw.js
           test -s public/icon.svg
           grep -q 'ClimaFlux' public/index.html
-          grep -q '0.4.0' public/manifest.webmanifest
-          echo 'ClimaFlux ERP v0.4.0 release validated.'
+          grep -q '0.5.0' public/manifest.webmanifest
+          grep -q 'companySelect' public/app.js
+          grep -q 'userSelect' public/app.js
+          grep -q 'auditoria' public/app.js
+          echo 'ClimaFlux ERP v0.5.0 release validated.'

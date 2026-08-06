@@ -3,6 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>ClimaFlux ERP 0.3.0</title>
   <style>
     :root { color-scheme: light dark; font-family: Inter, system-ui, sans-serif; }
@@ -29,10 +32,11 @@
   <script>
     const EXPECTED_SHA256 = '528555dd66740baa9f83de81269f4360a70d2ca02096596d37ee4bd15fbe180d';
     const ARCHIVE_ROOT = '.bootstrap';
+    const PACKAGE_REVISION = '2026-08-06-r3';
     const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
     async function fetchText(name) {
-      const response = await fetch(`${ARCHIVE_ROOT}/${name}`, { cache: 'no-store' });
+      const response = await fetch(`${ARCHIVE_ROOT}/${name}?v=${PACKAGE_REVISION}`, { cache: 'no-store' });
       if (!response.ok) throw new Error(`Não foi possível carregar ${name} (${response.status}).`);
       return response.text();
     }
@@ -44,7 +48,7 @@
         .replace(/[^A-Za-z0-9+/=]/g, '');
       const firstPadding = clean.indexOf('=');
       if (firstPadding >= 0) clean = clean.slice(0, firstPadding);
-      if (clean.length % 4 === 1) throw new Error('Bloco Base64 incompleto.');
+      if (clean.length % 4 === 1) throw new Error('Sequência Base64 incompleta.');
 
       const output = [];
       let buffer = 0;
@@ -61,17 +65,6 @@
         }
       }
       return new Uint8Array(output);
-    }
-
-    function concatBytes(parts) {
-      const total = parts.reduce((sum, part) => sum + part.length, 0);
-      const output = new Uint8Array(total);
-      let offset = 0;
-      for (const part of parts) {
-        output.set(part, offset);
-        offset += part.length;
-      }
-      return output;
     }
 
     async function sha256(bytes) {
@@ -100,22 +93,23 @@
 
     async function buildArchive() {
       const encodedChunks = [];
+
       for (let index = 1; index <= 18; index += 1) {
         encodedChunks.push(await fetchText(`chunk-${String(index).padStart(2, '0')}.b64`));
       }
 
-      const chunk19Fragments = [];
+      const encodedChunk19Fragments = [];
       for (let index = 0; index <= 6; index += 1) {
-        const encodedFragment = await fetchText(`chunk-19y-${String(index).padStart(2, '0')}.b64`);
-        chunk19Fragments.push(new TextDecoder().decode(decodeBase64(encodedFragment)));
+        encodedChunk19Fragments.push(await fetchText(`chunk-19y-${String(index).padStart(2, '0')}.b64`));
       }
-      encodedChunks.push(chunk19Fragments.join(''));
+      const encodedChunk19 = encodedChunk19Fragments.join('');
+      encodedChunks.push(new TextDecoder().decode(decodeBase64(encodedChunk19)));
 
       for (let index = 20; index <= 23; index += 1) {
         encodedChunks.push(await fetchText(`chunk-${index}.b64`));
       }
 
-      return concatBytes(encodedChunks.map(decodeBase64));
+      return decodeBase64(encodedChunks.join(''));
     }
 
     async function launch() {

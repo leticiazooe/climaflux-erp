@@ -6,7 +6,7 @@ Candidato **v0.7.0 — Fundação SaaS** para empresas de assistência técnica 
 
 ## Fase 1 — estado atual
 
-A v0.7.0 migra a base do protótipo para uma arquitetura SaaS real:
+A v0.7.0 migra o protótipo para uma arquitetura SaaS real:
 
 - Cloudflare Worker executado antes dos assets;
 - Google Identity Services com validação do ID token no servidor;
@@ -24,82 +24,88 @@ A v0.7.0 migra a base do protótipo para uma arquitetura SaaS real:
 1. **Clientes** — `/customers-saas.html`
 2. **Equipamentos** — `/equipment-saas.html`
 3. **Ordens de Serviço + histórico** — `/work-orders-saas.html`
+4. **Agenda e operação de campo** — `/field-service-saas.html`
 
-As telas antigas continuam no shell do protótipo enquanto a migração é validada. As telas `*-saas.html` são a fonte de verdade para os módulos já migrados.
+As telas antigas continuam no shell do protótipo enquanto cada domínio é migrado. Para os domínios acima, as telas `*-saas.html` usam o backend como fonte de verdade.
 
 ## Multiempresa e segurança
 
-Toda operação de negócio usa o `tenant_id` derivado da sessão autenticada. Os endpoints operacionais não aceitam `tenantId` do navegador como autoridade.
+Toda operação de negócio usa o `tenant_id` derivado da sessão autenticada. Os endpoints não aceitam `tenantId` do navegador como autoridade.
 
-O banco também reforça relacionamentos compostos por tenant:
+O banco reforça os relacionamentos por tenant:
 
 - Cliente → Equipamento;
 - Cliente → Ordem de Serviço;
 - Equipamento → Ordem de Serviço;
-- Ordem de Serviço → Histórico.
+- Ordem de Serviço → Histórico;
+- Ordem de Serviço → Visita técnica;
+- Visita → Checklist, medições e eventos.
 
-Uma OS não pode apontar para um equipamento pertencente a outro cliente ou tenant.
+Uma OS não pode usar equipamento de outro cliente. Equipamentos com histórico de OS não podem ser transferidos silenciosamente para outro cliente. Uma OS com visita ativa não pode trocar de técnico nem ser encerrada até a visita ser concluída ou cancelada.
 
 ## Perfis operacionais
 
 - `admin`: acesso total;
-- `gestor`: clientes, equipamentos, ordens, exclusões, equipe e auditoria;
-- `atendimento`: clientes, equipamentos e gestão operacional das ordens;
-- `tecnico`: leitura de clientes/equipamentos e fluxo das próprias ordens atribuídas;
-- `estoque`: leitura de clientes, equipamentos e ordens;
-- `financeiro`: leitura de clientes, equipamentos e ordens.
+- `gestor`: gestão completa da operação e auditoria;
+- `atendimento`: clientes, equipamentos, ordens, atribuição e planejamento das visitas;
+- `tecnico`: leitura necessária, próprias OS, própria agenda, status, checklist e medições;
+- `estoque`: leitura de clientes/equipamentos/ordens;
+- `financeiro`: leitura de clientes/equipamentos/ordens.
 
-O técnico recebe filtro obrigatório por `technician_user_id` no servidor. Esconder botões no front-end nunca substitui a autorização do Worker.
+O técnico recebe filtros obrigatórios por `user_id` no servidor para OS e visitas. Os endpoints auxiliares também removem dados de outros técnicos antes da resposta.
 
 ## Equipamentos SaaS
 
-`/equipment-saas.html` oferece:
-
-- vínculo obrigatório com cliente;
-- marca, modelo, série, patrimônio, capacidade, refrigerante e localização;
-- status ativo/inativo/baixado;
-- pesquisa e filtros;
-- criação idempotente;
-- edição tenant-scoped;
-- exclusão lógica;
-- bloqueio de exclusão enquanto houver OS aberta;
-- auditoria.
+`/equipment-saas.html` oferece vínculo com cliente, identificação técnica, localização, status, pesquisa, criação idempotente, edição, exclusão lógica e auditoria. Série e patrimônio ativos são únicos por tenant.
 
 ## Ordens de Serviço SaaS
 
-`/work-orders-saas.html` oferece:
+`/work-orders-saas.html` oferece cliente/equipamento vinculados, técnico ativo, prioridade, agenda, prazo de SLA, fluxo de status controlado, resolução obrigatória na conclusão, motivo de pausa/cancelamento e histórico imutável.
 
-- cliente e equipamento vinculados;
-- técnico atribuído com vínculo ativo no mesmo tenant;
-- tipo de serviço, título, descrição e prioridade;
-- agenda e prazo de SLA;
-- fluxo de status controlado;
-- conclusão com resolução obrigatória;
-- motivo obrigatório para pausa/cancelamento;
-- exclusão lógica restrita a rascunho/cancelada;
-- ordenação por criticidade e prazo;
-- histórico de eventos imutável na aplicação.
+Fluxo permitido:
 
-Fluxo inicial permitido:
+```text
+draft       -> open | cancelled
+open        -> scheduled | in_progress | cancelled
+scheduled   -> in_progress | on_hold | cancelled
+in_progress -> on_hold | completed | cancelled
+on_hold     -> scheduled | in_progress | completed | cancelled
+completed   -> terminal
+cancelled   -> terminal
+```
 
-`draft → open/cancelled`
+## Agenda e operação de campo
 
-`open → scheduled/in_progress/cancelled`
+`/field-service-saas.html` conecta a agenda diretamente à OS atribuída ao técnico.
 
-`scheduled → in_progress/on_hold/cancelled`
+Fluxo da visita:
 
-`in_progress → on_hold/completed/cancelled`
+```text
+planned  -> en_route | on_site | cancelled
+en_route -> on_site | cancelled
+on_site  -> completed | cancelled
+completed/cancelled -> terminal
+```
 
-`on_hold → scheduled/in_progress/completed/cancelled`
+Controles implementados:
 
-Ordens concluídas ou canceladas são terminais nesta primeira versão.
+- visita somente para OS aberta e já atribuída a um técnico ativo;
+- técnico vê apenas a própria agenda;
+- atendimento/gestão planejam e alteram horário;
+- chegada e saída registradas pelo fluxo de status;
+- checklist padrão persistido no D1;
+- item `not_ok` exige observação;
+- visita não conclui com checklist pendente;
+- medições técnicas persistidas no D1;
+- histórico da visita protegido contra `UPDATE` e `DELETE`;
+- fotos, anexos e assinatura ficam para a etapa R2.
 
 ## Banco de dados
 
-- `migrations/0001_saas_foundation.sql`: identidade, tenants, sessões, clientes, auditoria e idempotência.
-- `migrations/0002_operational_core.sql`: equipamentos, ordens de serviço e histórico operacional.
-
-O schema operacional inclui índices por tenant, FKs compostas e trigger para impedir associação equipamento/cliente inconsistente.
+- `0001_saas_foundation.sql`: identidade, tenants, sessões, clientes, auditoria e idempotência;
+- `0002_operational_core.sql`: equipamentos, ordens e histórico;
+- `0003_field_service.sql`: visitas, checklist, medições e histórico de campo;
+- `0004_field_service_integrity.sql`: bloqueio de encerramento de OS com visita ativa.
 
 ## API
 
@@ -110,8 +116,7 @@ O schema operacional inclui índices por tenant, FKs compostas e trigger para im
 - `POST /api/auth/google`
 - `GET /api/v1/me`
 - `POST /api/auth/logout`
-- `GET /api/v1/tenants`
-- `POST /api/v1/tenants`
+- `GET|POST /api/v1/tenants`
 - `POST /api/v1/tenant/switch`
 
 ### Clientes
@@ -131,6 +136,15 @@ O schema operacional inclui índices por tenant, FKs compostas e trigger para im
 - `POST /api/v1/work-orders/:id/status`
 - `GET /api/v1/work-orders/:id/history`
 - `GET /api/v1/work-orders/lookups`
+
+### Operação de campo
+
+- `GET /api/v1/field/lookups`
+- `GET|POST /api/v1/field/visits`
+- `GET|PATCH /api/v1/field/visits/:id`
+- `POST /api/v1/field/visits/:id/status`
+- `PUT /api/v1/field/visits/:id/checklist`
+- `POST /api/v1/field/visits/:id/measurements`
 
 ### Administração
 
@@ -168,35 +182,22 @@ Nunca versione nem envie `SESSION_SECRET` por chat, issue ou log.
 
 ## Validação automatizada
 
-O quality gate executa:
-
-1. `npm ci` com lockfile;
-2. auditoria das dependências de runtime;
-3. verificação de sintaxe;
-4. testes de autenticação, RBAC, tenant isolation, schema e fluxo operacional;
-5. build verificado;
-6. validação de **20 assets protegidos**.
+O quality gate executa `npm ci`, auditoria de runtime, syntax check, testes de autenticação/RBAC/tenant isolation/workflows, build verificado e validação de **22 assets protegidos**.
 
 ## Publicação
 
-```bash
-npm run deploy
-```
-
 O deploy da v0.7.0 **não deve ser feito ainda** até:
 
-- criar o D1 real;
-- substituir `REPLACE_WITH_D1_DATABASE_ID`;
-- aplicar migrations 0001 e 0002;
-- configurar secrets;
+- criar o D1 real e substituir `REPLACE_WITH_D1_DATABASE_ID`;
+- aplicar migrations 0001–0004;
+- configurar os secrets;
 - cadastrar a origem final no Google Cloud;
 - testar duas empresas em homologação;
-- confirmar isolamento de clientes, equipamentos e OS;
+- confirmar isolamento de clientes, equipamentos, OS e visitas;
 - testar backup/restauração do D1.
 
 ## Ainda no armazenamento local
 
-- agenda e operação de campo completa;
 - contratos;
 - orçamentos;
 - vendas;
@@ -204,9 +205,9 @@ O deploy da v0.7.0 **não deve ser feito ainda** até:
 - compras;
 - financeiro;
 - despacho avançado e motor oficial de SLA;
-- anexos, fotos e assinaturas;
+- fotos, anexos e assinaturas;
 - portal do cliente.
 
-Próxima sequência: **agenda/técnicos → estoque → compras/vendas/financeiro → contratos/SLA → R2/anexos → portal real do cliente**.
+Próxima sequência: **estoque transacional → compras/vendas → financeiro → contratos/SLA → R2/anexos → portal real do cliente**.
 
 Consulte `docs/PHASE_1_SAAS.md` para os critérios de ativação.

@@ -76,6 +76,7 @@
     if (hasPermission('work_orders.read')) appendLink(bar, '/work-orders-saas.html', 'Ordens');
     if (hasPermission('field_service.read')) appendLink(bar, '/field-service-saas.html', 'Agenda');
     if (hasPermission('inventory.read')) appendLink(bar, '/inventory-saas.html', 'Estoque');
+    if (hasPermission('purchases.read')) appendLink(bar, '/purchases-saas.html', 'Compras');
     if (hasPermission('members.read')) appendLink(bar, '/admin-access.html', 'Acessos');
     const logout = document.createElement('button'); logout.type = 'button'; logout.textContent = 'Sair';
     logout.addEventListener('click', async () => { logout.disabled = true; try { await api('/api/auth/logout', { method: 'POST' }); } catch (error) { console.warn(error); } localStorage.removeItem('climaflux-auth-context'); sessionStorage.clear(); if ('caches' in window) for (const name of await caches.keys()) await caches.delete(name); location.replace('/login.html'); });
@@ -117,6 +118,15 @@
       listStockBalances(params = {}) { return query('/api/v1/inventory/balances', params); },
       listStockMovements(params = {}) { return query('/api/v1/inventory/movements', params); },
       createStockMovement(movement, key = crypto.randomUUID()) { return jsonRequest('/api/v1/inventory/movements', 'POST', movement, { 'Idempotency-Key': key }); },
+      purchaseLookups() { return api('/api/v1/purchases/lookups'); },
+      listSuppliers(params = {}) { return query('/api/v1/purchases/suppliers', params); },
+      createSupplier(supplier) { return jsonRequest('/api/v1/purchases/suppliers', 'POST', supplier); },
+      updateSupplier(id, supplier) { return jsonRequest(`/api/v1/purchases/suppliers/${encodeURIComponent(id)}`, 'PATCH', supplier); },
+      listPurchaseOrders(params = {}) { return query('/api/v1/purchases/orders', params); },
+      getPurchaseOrder(id) { return api(`/api/v1/purchases/orders/${encodeURIComponent(id)}`); },
+      createPurchaseOrder(order) { return jsonRequest('/api/v1/purchases/orders', 'POST', order); },
+      transitionPurchaseOrder(id, transition) { return jsonRequest(`/api/v1/purchases/orders/${encodeURIComponent(id)}/status`, 'POST', transition); },
+      receivePurchaseOrder(id, receipt, key = crypto.randomUUID()) { return jsonRequest(`/api/v1/purchases/orders/${encodeURIComponent(id)}/receipts`, 'POST', receipt, { 'Idempotency-Key': key }); },
     };
     resolveReady(window.ClimaFluxSaaS); setTimeout(synchronizeDemoContext, 250); setTimeout(synchronizeDemoContext, 1000);
   }

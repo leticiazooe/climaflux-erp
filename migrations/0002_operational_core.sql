@@ -31,12 +31,9 @@ CREATE TABLE IF NOT EXISTS equipment (
   FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE RESTRICT
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_equipment_tenant_identity
-  ON equipment(tenant_id, id);
-CREATE INDEX IF NOT EXISTS idx_equipment_tenant_customer
-  ON equipment(tenant_id, customer_id, status, updated_at DESC);
-CREATE INDEX IF NOT EXISTS idx_equipment_tenant_search
-  ON equipment(tenant_id, brand, model, serial_number, asset_tag);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_equipment_tenant_identity ON equipment(tenant_id, id);
+CREATE INDEX IF NOT EXISTS idx_equipment_tenant_customer ON equipment(tenant_id, customer_id, status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_equipment_tenant_search ON equipment(tenant_id, brand, model, serial_number, asset_tag);
 
 CREATE TABLE IF NOT EXISTS work_orders (
   id TEXT PRIMARY KEY,
@@ -71,18 +68,12 @@ CREATE TABLE IF NOT EXISTS work_orders (
   FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE RESTRICT
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_work_orders_tenant_identity
-  ON work_orders(tenant_id, id);
-CREATE INDEX IF NOT EXISTS idx_work_orders_tenant_status_priority
-  ON work_orders(tenant_id, status, priority, updated_at DESC);
-CREATE INDEX IF NOT EXISTS idx_work_orders_tenant_customer
-  ON work_orders(tenant_id, customer_id, updated_at DESC);
-CREATE INDEX IF NOT EXISTS idx_work_orders_tenant_equipment
-  ON work_orders(tenant_id, equipment_id, updated_at DESC);
-CREATE INDEX IF NOT EXISTS idx_work_orders_tenant_technician
-  ON work_orders(tenant_id, technician_user_id, status, updated_at DESC);
-CREATE INDEX IF NOT EXISTS idx_work_orders_tenant_sla
-  ON work_orders(tenant_id, sla_due_at, status);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_work_orders_tenant_identity ON work_orders(tenant_id, id);
+CREATE INDEX IF NOT EXISTS idx_work_orders_tenant_status_priority ON work_orders(tenant_id, status, priority, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_work_orders_tenant_customer ON work_orders(tenant_id, customer_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_work_orders_tenant_equipment ON work_orders(tenant_id, equipment_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_work_orders_tenant_technician ON work_orders(tenant_id, technician_user_id, status, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_work_orders_tenant_sla ON work_orders(tenant_id, sla_due_at, status);
 
 CREATE TABLE IF NOT EXISTS work_order_events (
   id TEXT PRIMARY KEY,
@@ -100,8 +91,7 @@ CREATE TABLE IF NOT EXISTS work_order_events (
   FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_work_order_events_tenant_order
-  ON work_order_events(tenant_id, work_order_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_work_order_events_tenant_order ON work_order_events(tenant_id, work_order_id, created_at DESC);
 
 CREATE TRIGGER IF NOT EXISTS trg_work_order_equipment_customer_insert
 BEFORE INSERT ON work_orders
@@ -135,14 +125,6 @@ BEGIN
   SELECT RAISE(ABORT, 'WORK_ORDER_EVENT_IMMUTABLE');
 END;
 
-CREATE TRIGGER IF NOT EXISTS trg_work_order_events_immutable_delete
-BEFORE DELETE ON work_order_events
-BEGIN
-  SELECT RAISE(ABORT, 'WORK_ORDER_EVENT_IMMUTABLE');
-END;
-
 INSERT INTO schema_metadata (key, value, updated_at)
 VALUES ('schema_version', '2', CURRENT_TIMESTAMP)
-ON CONFLICT(key) DO UPDATE SET
-  value = excluded.value,
-  updated_at = excluded.updated_at;
+ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at;

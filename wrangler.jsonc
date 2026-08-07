@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "climaflux-erp",
-  "main": "./worker/saas-worker.js",
+  "main": "./worker/phase1-worker.js",
   "compatibility_date": "2026-08-06",
   "observability": { "enabled": true },
   "build": {

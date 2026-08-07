@@ -22,14 +22,35 @@ test('relacionamentos operacionais são compostos por tenant', () => {
 
 test('banco impede equipamento de outro cliente em uma ordem', () => {
   assert.match(schema, /trg_work_order_equipment_customer_insert/);
+  assert.match(schema, /trg_work_order_equipment_customer_update/);
   assert.match(schema, /e\.customer_id = NEW\.customer_id/);
   assert.match(schema, /WORK_ORDER_EQUIPMENT_CUSTOMER_MISMATCH/);
 });
 
-test('histórico não pode ser alterado e não possui endpoint de mutação', () => {
+test('equipamento com histórico de OS não pode trocar de cliente', () => {
+  assert.match(schema, /trg_equipment_customer_reassignment_guard/);
+  assert.match(schema, /EQUIPMENT_CUSTOMER_LOCKED_BY_WORK_ORDER/);
+  assert.match(schema, /w\.equipment_id = OLD\.id/);
+});
+
+test('banco rejeita agenda com término anterior ao início', () => {
+  assert.match(schema, /trg_work_order_schedule_insert/);
+  assert.match(schema, /trg_work_order_schedule_update/);
+  assert.match(schema, /julianday\(NEW\.scheduled_end\) < julianday\(NEW\.scheduled_start\)/);
+  assert.match(schema, /WORK_ORDER_SCHEDULE_INVALID/);
+});
+
+test('histórico é imutável inclusive contra exclusão direta', () => {
   assert.match(schema, /trg_work_order_events_immutable_update/);
+  assert.match(schema, /trg_work_order_events_immutable_delete/);
   assert.doesNotMatch(source, /UPDATE work_order_events/);
   assert.doesNotMatch(source, /DELETE FROM work_order_events/);
+});
+
+test('identificadores físicos podem ser reutilizados somente após exclusão lógica', () => {
+  assert.match(schema, /idx_equipment_tenant_serial_active/);
+  assert.match(schema, /idx_equipment_tenant_asset_tag_active/);
+  assert.match(schema, /WHERE serial_number IS NOT NULL AND deleted_at IS NULL/);
 });
 
 test('queries operacionais derivam tenant da sessão', () => {

@@ -32,16 +32,8 @@
   async function api(path, options = {}) {
     const method = String(options.method || 'GET').toUpperCase();
     const headers = new Headers(options.headers || {});
-    if (csrfToken && !['GET', 'HEAD', 'OPTIONS'].includes(method)) {
-      headers.set('X-CSRF-Token', csrfToken);
-    }
-    const response = await fetch(path, {
-      ...options,
-      method,
-      headers,
-      credentials: 'same-origin',
-      cache: 'no-store',
-    });
+    if (csrfToken && !['GET', 'HEAD', 'OPTIONS'].includes(method)) headers.set('X-CSRF-Token', csrfToken);
+    const response = await fetch(path, { ...options, method, headers, credentials: 'same-origin', cache: 'no-store' });
     const body = await response.json().catch(() => ({}));
     if (response.status === 401) {
       location.replace(`/login.html?returnTo=${encodeURIComponent(location.pathname + location.search + location.hash)}`);
@@ -86,14 +78,7 @@
   function synchronizeDemoContext() {
     const membership = session.activeTenant || session.activeCompany;
     const companySelect = findSelect(['companySelect', 'empresaSelect', 'tenantSelect']);
-    chooseOption(companySelect, [
-      membership.app_company_key,
-      membership.tenant_id,
-      membership.company_id,
-      membership.tenant_name,
-      membership.company_name,
-      membership.tenant_slug,
-    ]);
+    chooseOption(companySelect, [membership.app_company_key, membership.tenant_id, membership.company_id, membership.tenant_name, membership.company_name, membership.tenant_slug]);
     hideControl(companySelect);
 
     const userSelect = findSelect(['userSelect', 'usuarioSelect', 'profileSelect']);
@@ -174,6 +159,7 @@
     if (hasPermission('customers.read')) appendLink(bar, '/customers-saas.html', 'Clientes');
     if (hasPermission('equipment.read')) appendLink(bar, '/equipment-saas.html', 'Equipamentos');
     if (hasPermission('work_orders.read')) appendLink(bar, '/work-orders-saas.html', 'Ordens');
+    if (hasPermission('field_service.read')) appendLink(bar, '/field-service-saas.html', 'Agenda');
     if (hasPermission('members.read')) appendLink(bar, '/admin-access.html', 'Acessos');
 
     const logout = document.createElement('button');
@@ -181,16 +167,10 @@
     logout.textContent = 'Sair';
     logout.addEventListener('click', async () => {
       logout.disabled = true;
-      try {
-        await api('/api/auth/logout', { method: 'POST' });
-      } catch (error) {
-        console.warn(error);
-      }
+      try { await api('/api/auth/logout', { method: 'POST' }); } catch (error) { console.warn(error); }
       localStorage.removeItem('climaflux-auth-context');
       sessionStorage.clear();
-      if ('caches' in window) {
-        for (const name of await caches.keys()) await caches.delete(name);
-      }
+      if ('caches' in window) for (const name of await caches.keys()) await caches.delete(name);
       location.replace('/login.html');
     });
     bar.append(logout);
@@ -221,61 +201,51 @@
       get csrfToken() { return csrfToken; },
       listCustomers(params = {}) { return query('/api/v1/customers', params); },
       createCustomer(customer, idempotencyKey = crypto.randomUUID()) {
-        return api('/api/v1/customers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
-          body: JSON.stringify(customer),
-        });
+        return api('/api/v1/customers', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(customer) });
       },
       updateCustomer(id, customer) {
-        return api(`/api/v1/customers/${encodeURIComponent(id)}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(customer),
-        });
+        return api(`/api/v1/customers/${encodeURIComponent(id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(customer) });
       },
       deleteCustomer(id) { return api(`/api/v1/customers/${encodeURIComponent(id)}`, { method: 'DELETE' }); },
       listEquipment(params = {}) { return query('/api/v1/equipment', params); },
       createEquipment(equipment, idempotencyKey = crypto.randomUUID()) {
-        return api('/api/v1/equipment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
-          body: JSON.stringify(equipment),
-        });
+        return api('/api/v1/equipment', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(equipment) });
       },
       updateEquipment(id, equipment) {
-        return api(`/api/v1/equipment/${encodeURIComponent(id)}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(equipment),
-        });
+        return api(`/api/v1/equipment/${encodeURIComponent(id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(equipment) });
       },
       deleteEquipment(id) { return api(`/api/v1/equipment/${encodeURIComponent(id)}`, { method: 'DELETE' }); },
       listWorkOrders(params = {}) { return query('/api/v1/work-orders', params); },
       workOrderLookups() { return api('/api/v1/work-orders/lookups'); },
       createWorkOrder(workOrder, idempotencyKey = crypto.randomUUID()) {
-        return api('/api/v1/work-orders', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
-          body: JSON.stringify(workOrder),
-        });
+        return api('/api/v1/work-orders', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(workOrder) });
       },
       updateWorkOrder(id, workOrder) {
-        return api(`/api/v1/work-orders/${encodeURIComponent(id)}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(workOrder),
-        });
+        return api(`/api/v1/work-orders/${encodeURIComponent(id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(workOrder) });
       },
       transitionWorkOrder(id, transition) {
-        return api(`/api/v1/work-orders/${encodeURIComponent(id)}/status`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(transition),
-        });
+        return api(`/api/v1/work-orders/${encodeURIComponent(id)}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(transition) });
       },
       workOrderHistory(id) { return api(`/api/v1/work-orders/${encodeURIComponent(id)}/history`); },
       deleteWorkOrder(id) { return api(`/api/v1/work-orders/${encodeURIComponent(id)}`, { method: 'DELETE' }); },
+      fieldLookups() { return api('/api/v1/field/lookups'); },
+      listVisits(params = {}) { return query('/api/v1/field/visits', params); },
+      getVisit(id) { return api(`/api/v1/field/visits/${encodeURIComponent(id)}`); },
+      createVisit(visit) {
+        return api('/api/v1/field/visits', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(visit) });
+      },
+      updateVisit(id, visit) {
+        return api(`/api/v1/field/visits/${encodeURIComponent(id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(visit) });
+      },
+      transitionVisit(id, transition) {
+        return api(`/api/v1/field/visits/${encodeURIComponent(id)}/status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(transition) });
+      },
+      saveVisitChecklist(id, items) {
+        return api(`/api/v1/field/visits/${encodeURIComponent(id)}/checklist`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items }) });
+      },
+      addVisitMeasurement(id, measurement) {
+        return api(`/api/v1/field/visits/${encodeURIComponent(id)}/measurements`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(measurement) });
+      },
     };
     resolveReady(window.ClimaFluxSaaS);
     setTimeout(synchronizeDemoContext, 250);

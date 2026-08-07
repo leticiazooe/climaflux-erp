@@ -1,10 +1,11 @@
 import { createHash } from 'node:crypto';
 import { gunzipSync } from 'node:zlib';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve, sep } from 'node:path';
 
 const ROOT = resolve(process.cwd());
 const RELEASE_DIR = resolve(ROOT, '.release-v060');
+const AUTH_DIR = resolve(ROOT, 'auth');
 const OUTPUT_DIR = resolve(ROOT, 'public');
 const EXPECTED_ARCHIVE_SHA256 = '276dc082e046d202aeab91b807ee3bba9b20a403eba0187163f14e107b3750a5';
 const EXPECTED_PARTS = [
@@ -36,14 +37,15 @@ const EXPECTED_PARTS = [
   ['part-23.b64', '7fade86fb25b776606eb115953ed6c64baceda72'],
   ['part-24.b64', 'ae8a94af4273ff4741f0fe1f6bb3cc40cecfd19a'],
 ];
-const REQUIRED_ASSETS = [
-  'app.js',
-  'domain.js',
-  'icon.svg',
-  'index.html',
-  'manifest.webmanifest',
-  'styles.css',
-  'sw.js',
+const RELEASE_ASSETS = ['app.js', 'domain.js', 'icon.svg', 'index.html', 'manifest.webmanifest', 'styles.css', 'sw.js'];
+const AUTH_ASSETS = [
+  ['auth.css', 'auth.css'],
+  ['login.html', 'login.html'],
+  ['login.js', 'login.js'],
+  ['auth-client.js', 'auth-client.js'],
+  ['admin-access.html', 'admin-access.html'],
+  ['admin-access.js', 'admin-access.js'],
+  ['secure-sw.js', 'sw.js'],
 ];
 
 function gitBlobSha1(buffer) {
@@ -61,7 +63,6 @@ async function rebuildArchive() {
     }
     encoded.push(raw.toString('utf8'));
   }
-
   const archive = Buffer.from(encoded.join('').replace(/\s/g, ''), 'base64');
   const actualArchiveSha = createHash('sha256').update(archive).digest('hex');
   if (actualArchiveSha !== EXPECTED_ARCHIVE_SHA256) {
@@ -80,11 +81,9 @@ async function extractTar(tarBuffer) {
   await mkdir(OUTPUT_DIR, { recursive: true });
   let offset = 0;
   const extracted = [];
-
   while (offset + 512 <= tarBuffer.length) {
     const header = tarBuffer.subarray(offset, offset + 512);
     if (header.every((byte) => byte === 0)) break;
-
     const rawName = header.subarray(0, 100).toString('utf8').replace(/\0.*$/, '');
     const prefix = header.subarray(345, 500).toString('utf8').replace(/\0.*$/, '');
     const name = `${prefix ? `${prefix}/` : ''}${rawName}`.replace(/^\.\//, '');
@@ -92,37 +91,49 @@ async function extractTar(tarBuffer) {
     const type = String.fromCharCode(header[156] || 48);
     const dataStart = offset + 512;
     const dataEnd = dataStart + size;
-
     if (name && type !== '5') {
-      if (!REQUIRED_ASSETS.includes(name)) {
-        throw new Error(`Arquivo inesperado no release público: ${name}`);
-      }
+      if (!RELEASE_ASSETS.includes(name)) throw new Error(`Arquivo inesperado no release público: ${name}`);
       const target = resolve(OUTPUT_DIR, name);
-      if (!target.startsWith(`${OUTPUT_DIR}${sep}`) && target !== OUTPUT_DIR) {
-        throw new Error(`Caminho inseguro no release: ${name}`);
-      }
+      if (!target.startsWith(`${OUTPUT_DIR}${sep}`) && target !== OUTPUT_DIR) throw new Error(`Caminho inseguro no release: ${name}`);
       await mkdir(dirname(target), { recursive: true });
       await writeFile(target, tarBuffer.subarray(dataStart, dataEnd));
       extracted.push(name);
     }
     offset = dataStart + Math.ceil(size / 512) * 512;
   }
+  const missing = RELEASE_ASSETS.filter((asset) => !extracted.includes(asset));
+  if (missing.length) throw new Error(`Assets obrigatórios ausentes: ${missing.join(', ')}.`);
+}
 
-  const missing = REQUIRED_ASSETS.filter((asset) => !extracted.includes(asset));
-  if (missing.length) {
-    throw new Error(`Assets obrigatórios ausentes: ${missing.join(', ')}.`);
+async function installAuthenticationAssets() {
+  for (const [source, target] of AUTH_ASSETS) {
+    await copyFile(resolve(AUTH_DIR, source), resolve(OUTPUT_DIR, target));
   }
-  if (extracted.length !== REQUIRED_ASSETS.length) {
-    throw new Error(`Quantidade inesperada de assets: ${extracted.length}.`);
+  const indexPath = resolve(OUTPUT_DIR, 'index.html');
+  let html = await readFile(indexPath, 'utf8');
+  if (!html.includes('/auth.css')) html = html.replace('</head>', '  <link rel="stylesheet" href="/auth.css">\n</head>');
+  if (!html.includes('/auth-client.js')) html = html.replace('</body>', '  <script src="/auth-client.js" defer></script>\n</body>');
+  await writeFile(indexPath, html);
+}
+
+async function validatePublicOutput() {
+  const required = [...new Set([...RELEASE_ASSETS, ...AUTH_ASSETS.map(([, target]) => target)])];
+  for (const name of required) {
+    const content = await readFile(resolve(OUTPUT_DIR, name));
+    if (!content.length) throw new Error(`Asset público vazio: ${name}`);
   }
-  return extracted.length;
+  const index = await readFile(resolve(OUTPUT_DIR, 'index.html'), 'utf8');
+  if (!index.includes('/auth-client.js') || !index.includes('/auth.css')) throw new Error('O shell do ERP não recebeu a proteção de autenticação.');
+  return required.length;
 }
 
 try {
-  console.log('Preparando ClimaFlux ERP v0.6.0...');
+  console.log('Preparando ClimaFlux ERP v0.7.0 com autenticação Google...');
   const archive = await rebuildArchive();
-  const count = await extractTar(gunzipSync(archive));
-  console.log(`ClimaFlux ERP v0.6.0 validado: ${count} arquivo(s) em ${OUTPUT_DIR}.`);
+  await extractTar(gunzipSync(archive));
+  await installAuthenticationAssets();
+  const count = await validatePublicOutput();
+  console.log(`ClimaFlux ERP v0.7.0 validado: ${count} asset(s) públicos protegidos em ${OUTPUT_DIR}.`);
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;

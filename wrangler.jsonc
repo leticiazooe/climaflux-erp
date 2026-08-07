@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "climaflux-erp",
-  "main": "./worker/index.js",
+  "main": "./worker/router.js",
   "compatibility_date": "2026-08-06",
   "observability": {
     "enabled": true
@@ -25,7 +25,11 @@
       "/login.html",
       "/admin-access.html",
       "/api/*",
-      "/sw.js"
+      "/sw.js",
+      "/auth.css",
+      "/login.js",
+      "/icon.svg",
+      "/manifest.webmanifest"
     ]
   },
   "d1_databases": [

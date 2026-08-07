@@ -55,6 +55,21 @@ function notFound(message) {
   });
 }
 
+function conflict(code, message) {
+  return new Response(JSON.stringify({ ok: false, code, message }), {
+    status: 409,
+    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
+  });
+}
+
+function inventoryError(error) {
+  const code = error instanceof Error ? error.message : 'UNKNOWN';
+  if (code.includes('INVENTORY_OPENING_ALREADY_EXISTS')) return conflict('INVENTORY_OPENING_ALREADY_EXISTS', 'O saldo inicial deste item/local já foi registrado. Use uma entrada ou ajuste.');
+  if (code.includes('INVENTORY_RETURN_EXCEEDS_ISSUED')) return conflict('INVENTORY_RETURN_EXCEEDS_ISSUED', 'A devolução é maior que o saldo de material consumido por esta OS.');
+  if (code.includes('INVENTORY_WORK_ORDER_INVALID')) return conflict('INVENTORY_WORK_ORDER_INVALID', 'A ordem de serviço não permite esta movimentação de material.');
+  return inventoryErrorResponse(error);
+}
+
 export default {
   async fetch(request, env, context) {
     const pathname = new URL(request.url).pathname;
@@ -69,7 +84,7 @@ export default {
         return response || notFound('Rota de estoque não encontrada.');
       } catch (error) {
         console.error('Inventory API failure', error);
-        return inventoryErrorResponse(error);
+        return inventoryError(error);
       }
     }
 

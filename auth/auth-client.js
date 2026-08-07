@@ -5,7 +5,18 @@
   function showFatal(message) {
     const root = document.createElement('div');
     root.className = 'climaflux-auth-error';
-    root.innerHTML = `<div><h2>Sessão não disponível</h2><p>${message}</p><p><a href="/login.html">Voltar para o login</a></p></div>`;
+    const card = document.createElement('div');
+    const title = document.createElement('h2');
+    title.textContent = 'Sessão não disponível';
+    const description = document.createElement('p');
+    description.textContent = String(message || 'Não foi possível validar a sessão.');
+    const action = document.createElement('p');
+    const link = document.createElement('a');
+    link.href = '/login.html';
+    link.textContent = 'Voltar para o login';
+    action.append(link);
+    card.append(title, description, action);
+    root.append(card);
     document.body.append(root);
   }
 
@@ -88,7 +99,11 @@
 
     const copy = document.createElement('div');
     copy.className = 'climaflux-session-copy';
-    copy.innerHTML = `<strong>${session.user.name || session.user.email}</strong><span>${session.activeCompany.company_name} · ${session.activeCompany.role}</span>`;
+    const identity = document.createElement('strong');
+    identity.textContent = session.user.name || session.user.email;
+    const context = document.createElement('span');
+    context.textContent = `${session.activeCompany.company_name} · ${session.activeCompany.role}`;
+    copy.append(identity, context);
 
     bar.append(avatar, copy);
 

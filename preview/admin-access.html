@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Gestão de acessos · ClimaFlux ERP</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/admin-access.css">
+  <script src="/admin-access.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <a class="brand" href="/">ClimaFlux ERP</a>
+      <span class="version">Prévia de acessos</span>
+    </div>
+    <a class="back-link" href="/">Voltar ao ERP</a>
+  </header>
+
+  <main class="page-shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">GESTÃO ADMINISTRATIVA</p>
+        <h1>Usuários e permissões</h1>
+        <p class="hero-copy">Valide a experiência da tela antes de conectarmos o login Google, as sessões e o banco de dados.</p>
+      </div>
+      <button id="newUserButton" class="primary-button" type="button">Adicionar usuário</button>
+    </section>
+
+    <aside class="preview-warning" role="note">
+      <strong>Prévia funcional.</strong>
+      <span>As alterações ficam somente neste navegador. Esta tela ainda não controla o acesso real ao ERP.</span>
+    </aside>
+
+    <section class="metrics" aria-label="Resumo de acessos">
+      <article><span>Total</span><strong id="metricTotal">0</strong></article>
+      <article><span>Ativos</span><strong id="metricActive">0</strong></article>
+      <article><span>Pendentes</span><strong id="metricPending">0</strong></article>
+      <article><span>Suspensos</span><strong id="metricSuspended">0</strong></article>
+    </section>
+
+    <section class="toolbar" aria-label="Filtros de usuários">
+      <label class="search-field">
+        <span>Pesquisar</span>
+        <input id="searchInput" type="search" placeholder="Nome ou e-mail">
+      </label>
+      <label>
+        <span>Status</span>
+        <select id="statusFilter">
+          <option value="all">Todos</option>
+          <option value="active">Ativos</option>
+          <option value="pending">Pendentes</option>
+          <option value="suspended">Suspensos</option>
+        </select>
+      </label>
+      <label>
+        <span>Perfil</span>
+        <select id="roleFilter">
+          <option value="all">Todos</option>
+          <option value="admin">Administrador</option>
+          <option value="atendimento">Atendimento</option>
+          <option value="tecnico">Técnico</option>
+          <option value="estoque">Estoque</option>
+          <option value="financeiro">Financeiro</option>
+          <option value="gestor">Gestor</option>
+        </select>
+      </label>
+      <button id="resetButton" class="secondary-button" type="button">Restaurar demonstração</button>
+    </section>
+
+    <div id="feedback" class="feedback" aria-live="polite"></div>
+    <section id="userGrid" class="user-grid" aria-live="polite"></section>
+
+    <section class="audit-section">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">HISTÓRICO LOCAL</p>
+          <h2>Atividade recente</h2>
+        </div>
+        <button id="clearAuditButton" class="text-button" type="button">Limpar histórico</button>
+      </div>
+      <div id="auditList" class="audit-list"></div>
+    </section>
+  </main>
+
+  <dialog id="userDialog">
+    <form id="userForm" method="dialog">
+      <div class="dialog-heading">
+        <div>
+          <p class="eyebrow">NOVO ACESSO</p>
+          <h2>Adicionar usuário</h2>
+        </div>
+        <button id="closeDialogButton" class="icon-button" type="button" aria-label="Fechar">×</button>
+      </div>
+      <label>
+        <span>Nome</span>
+        <input name="name" required maxlength="120" autocomplete="off">
+      </label>
+      <label>
+        <span>E-mail</span>
+        <input name="email" type="email" required maxlength="180" autocomplete="off">
+      </label>
+      <div class="field-row">
+        <label>
+          <span>Empresa</span>
+          <select name="company">
+            <option>ClimaFlux Matriz</option>
+            <option>ClimaFlux Unidade 2</option>
+          </select>
+        </label>
+        <label>
+          <span>Perfil</span>
+          <select name="role">
+            <option value="atendimento">Atendimento</option>
+            <option value="tecnico">Técnico</option>
+            <option value="estoque">Estoque</option>
+            <option value="financeiro">Financeiro</option>
+            <option value="gestor">Gestor</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </label>
+      </div>
+      <div class="dialog-actions">
+        <button id="cancelDialogButton" class="secondary-button" type="button">Cancelar</button>
+        <button class="primary-button" type="submit">Adicionar usuário</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

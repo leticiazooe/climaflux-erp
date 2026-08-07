@@ -1,80 +1,191 @@
 # ClimaFlux ERP
 
-ERP demonstrativo **v0.6.2** para empresas de assistência técnica em ar-condicionado e refrigeração. O produto integra atendimento, operação de campo, agenda, clientes, equipamentos, contratos preventivos, orçamentos, vendas, estoque, compras, financeiro, despacho, SLA e uma prévia da gestão de acessos.
+Candidato **v0.7.0 — Fundação SaaS** para empresas de assistência técnica em ar-condicionado e refrigeração.
 
-> **ClimaFlux ERP** é um nome provisório de demonstração. A disponibilidade jurídica e comercial da marca ainda não foi validada.
+> **ClimaFlux ERP** ainda é um nome provisório. A disponibilidade jurídica e comercial da marca precisa ser validada antes da venda.
 
-## Novidades da v0.6.2
+## O que mudou na Fase 1
 
-- Tela de entrada demonstrativa em `/login.html`.
-- Sessão local de navegação antes da autenticação Google definitiva.
-- Botão **Sair do sistema** no ERP e na Gestão de Acessos.
-- Confirmação antes de encerrar a sessão.
-- Redirecionamento seguro para a tela de entrada após o logout.
-- Dados operacionais preservados ao sair; apenas a sessão é encerrada.
-- Atalho flutuante para `/admin-access.html` dentro do ERP.
-- Service worker atualizado para invalidar o cache anterior e entregar as novas telas.
-- Quality gate que valida entrada, saída, Gestão de Acessos e cache PWA.
+A versão v0.6.2 usava sessão, usuários e dados multiempresa simulados no navegador. A v0.7.0 inicia a migração para uma arquitetura SaaS real:
 
-## Gestão de acessos — prévia funcional
+- Cloudflare Worker executado antes de todos os assets;
+- login com Google Identity Services;
+- validação criptográfica do ID token no servidor;
+- sessões revogáveis com cookie `Secure`, `HttpOnly` e `SameSite=Lax`;
+- Cloudflare D1 com migrations versionadas;
+- empresas reais (`tenants`) e vínculos de usuário por empresa;
+- convites por e-mail que são aceitos no primeiro login Google correspondente;
+- RBAC aplicado no servidor;
+- auditoria por tenant, usuário, recurso e ação;
+- health check em `/api/health`;
+- criação e troca de empresa;
+- proteção contra CSRF e excesso de tentativas de login;
+- idempotência para criação de clientes;
+- primeiro módulo real no backend: **Clientes SaaS**;
+- service worker impedido de armazenar APIs ou conteúdo autenticado.
 
-A rota `/admin-access.html` permite testar:
+## Primeiro módulo migrado
 
-- pesquisa e filtros de usuários;
-- alteração de empresa, perfil e status;
-- criação de novos usuários;
-- indicadores de ativos, pendentes e suspensos;
-- histórico local de alterações;
-- restauração dos dados demonstrativos.
+A rota protegida `/customers-saas.html` usa exclusivamente a API e o D1 para:
 
-As alterações dessa prévia ficam no `localStorage` do navegador e **ainda não controlam o acesso real ao ERP**. A integração robusta com Google, Cloudflare Worker e D1 está sendo desenvolvida separadamente.
+- listar e pesquisar clientes;
+- filtrar por status;
+- criar clientes;
+- editar clientes;
+- fazer exclusão lógica;
+- respeitar o perfil do usuário;
+- registrar auditoria;
+- isolar todas as operações pela empresa ativa da sessão.
 
-## Perfis demonstrativos
+O módulo antigo de clientes do protótipo ainda existe dentro do ERP. A nova tela é a prova funcional da arquitetura que substituirá gradualmente os módulos locais.
 
-- Administrador
-- Atendimento
-- Técnico
-- Estoque
-- Financeiro
-- Gestor
+## Gestão de empresas e acessos
 
-## Recursos implementados
+A rota `/admin-access.html` permite ao administrador da empresa ativa:
 
-- Dashboard operacional, financeiro e de estoque.
-- Área mobile do técnico com rota diária, checklist, medições, fotos e assinatura.
-- Ordens de serviço com fluxo de status, histórico e SLA.
-- Fila de despacho ordenada por criticidade e vencimento.
-- Clientes, equipamentos e contratos preventivos.
-- Orçamentos com aprovação e conversão em OS.
-- Vendas com baixa automática de estoque e lançamento financeiro.
-- Compras com recebimento, entrada no estoque e conta a pagar.
-- Consumo de materiais diretamente na OS.
-- Contexto multiempresa, notificações, auditoria, backup e restauração.
-- Portal demonstrativo do cliente.
-- PWA com atualização de cache e fallback offline.
+- criar convite para uma conta Google;
+- escolher o perfil inicial;
+- consultar membros;
+- alterar perfil e status;
+- suspender o acesso e revogar sessões do vínculo;
+- cancelar convites pendentes.
 
-## Executar localmente
+O backend impede que o último administrador ativo da empresa seja removido.
+
+## Perfis e permissões iniciais
+
+- `admin`: acesso total;
+- `gestor`: clientes, auditoria e leitura da equipe;
+- `atendimento`: leitura e escrita de clientes;
+- `tecnico`: leitura de clientes;
+- `estoque`: leitura de clientes;
+- `financeiro`: leitura de clientes.
+
+As permissões são verificadas no Worker. Esconder um botão no front-end não é usado como controle de segurança.
+
+## Banco de dados
+
+A migration `migrations/0001_saas_foundation.sql` cria:
+
+- `tenants`;
+- `users`;
+- `memberships`;
+- `tenant_invites`;
+- `sessions`;
+- `customers`;
+- `audit_log`;
+- `auth_events`;
+- `idempotency_keys`;
+- `schema_metadata`.
+
+As tabelas de negócio e administração carregam `tenant_id`, com índices e unicidade no escopo da empresa.
+
+## Configuração local
+
+### 1. Instalar dependências
 
 ```bash
 npm install
-npm run serve
 ```
 
-Acesse `http://localhost:8080`. O primeiro acesso é direcionado para `/login.html`.
-
-## Validar o release
+### 2. Criar o banco D1
 
 ```bash
-npm run build:public
+npm run db:create
 ```
 
-O build:
+Copie o `database_id` retornado para `wrangler.jsonc`, substituindo `REPLACE_WITH_D1_DATABASE_ID`.
 
-1. valida os 27 fragmentos da aplicação e o SHA-256 original;
-2. extrai os assets do ERP;
-3. adiciona as telas de entrada, sessão e Gestão de Acessos;
-4. substitui o service worker pela versão `climaflux-v062-session-shell`;
-5. confirma que os 14 arquivos públicos obrigatórios foram gerados.
+### 3. Aplicar as migrations
+
+```bash
+npm run db:migrate:local
+npm run db:migrate
+```
+
+### 4. Configurar secrets
+
+```bash
+npx wrangler secret put GOOGLE_CLIENT_ID
+npx wrangler secret put SESSION_SECRET
+npx wrangler secret put BOOTSTRAP_ADMIN_EMAILS
+```
+
+- `GOOGLE_CLIENT_ID`: Client ID OAuth Web do Google;
+- `SESSION_SECRET`: valor aleatório forte, mantido apenas no Cloudflare;
+- `BOOTSTRAP_ADMIN_EMAILS`: e-mails que podem criar o primeiro vínculo administrativo, separados por vírgula.
+
+Secret opcional:
+
+```bash
+npx wrangler secret put ALLOWED_GOOGLE_EMAILS
+```
+
+Variáveis opcionais no `wrangler.jsonc`:
+
+- `ALLOWED_GOOGLE_DOMAINS`;
+- `AUTO_PROVISION_ROLE`;
+- `ENABLE_TENANT_CREATION`;
+- `DEFAULT_TENANT_NAME`;
+- `DEFAULT_APP_COMPANY_KEY`;
+- `BOOTSTRAP_APP_USER_KEY`;
+- tempos de sessão e convite.
+
+### 5. Executar pelo Worker
+
+```bash
+npm run dev
+```
+
+O servidor estático simples não reproduz autenticação, D1 ou proteção dos assets. Para testar a Fase 1 use `wrangler dev` por meio do comando acima.
+
+## Validação
+
+```bash
+npm run validate
+```
+
+O comando executa:
+
+1. verificação de sintaxe;
+2. testes de autenticação, RBAC, schema, tenant isolation e roteamento;
+3. reconstrução do release público;
+4. validação dos assets protegidos.
+
+## API da Fase 1
+
+### Públicas
+
+- `GET /api/health`
+- `GET /api/auth/config`
+- `POST /api/auth/google`
+
+### Sessão e empresas
+
+- `GET /api/v1/me`
+- `POST /api/auth/logout`
+- `GET /api/v1/tenants`
+- `POST /api/v1/tenants`
+- `POST /api/v1/tenant/switch`
+
+### Clientes
+
+- `GET /api/v1/customers`
+- `POST /api/v1/customers`
+- `PATCH /api/v1/customers/:id`
+- `DELETE /api/v1/customers/:id`
+
+### Administração
+
+- `GET /api/v1/admin/members`
+- `POST /api/v1/admin/invites`
+- `PATCH /api/v1/admin/members/:userId`
+- `DELETE /api/v1/admin/invites/:inviteId`
+- `GET /api/v1/audit`
+
+## Build público
+
+O build mantém a integridade do pacote-base v0.6.0 e instala a camada SaaS sobre ele.
 
 SHA-256 do pacote-base:
 
@@ -88,19 +199,31 @@ SHA-256 do pacote-base:
 npm run deploy
 ```
 
-O Wrangler executa `scripts/build-public.mjs` e publica somente a pasta `public` no Cloudflare Workers Static Assets.
+O deploy só deve ser executado depois de:
 
-## Limitação de segurança
+- criar o D1;
+- substituir o ID do banco;
+- aplicar migrations;
+- configurar os secrets;
+- cadastrar a origem final no Google Cloud;
+- validar login, logout, troca de empresa e isolamento em homologação.
 
-A sessão da v0.6.2 é uma **simulação funcional no navegador**. Ela serve para validar a experiência de entrada e saída, mas não substitui autenticação no servidor. Dados operacionais e permissões ainda precisam migrar para APIs autenticadas com autorização por empresa antes de uso real em produção.
+## O que ainda não foi migrado
 
-## Arquitetura de produção proposta
+A Fase 1 está iniciada, mas o ERP inteiro ainda não é SaaS. Estes módulos continuam no armazenamento local do protótipo:
 
-- Front-end React + TypeScript com PWA para técnicos.
-- Cloudflare Worker/API TypeScript para autenticação e serviços.
-- Google Identity Services com validação criptográfica do ID token.
-- D1/PostgreSQL com isolamento obrigatório por `tenant_id`.
-- Sessões revogáveis em cookies `Secure`, `HttpOnly` e `SameSite`.
-- Motor de SLA no servidor com calendário comercial, feriados e pausas auditáveis.
-- Object storage para fotos, laudos, anexos e assinaturas.
-- Auditoria imutável, observabilidade, backups e controles LGPD.
+- ordens de serviço;
+- equipamentos;
+- agenda e operação de campo;
+- contratos;
+- orçamentos;
+- vendas;
+- estoque;
+- compras;
+- financeiro;
+- despacho e cálculo oficial de SLA;
+- portal do cliente.
+
+A próxima sequência recomendada é: **ordens de serviço → equipamentos → estoque → financeiro → anexos/R2 → portal do cliente**.
+
+Consulte `docs/PHASE_1_SAAS.md` para o plano técnico e os critérios de ativação.

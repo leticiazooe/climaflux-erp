@@ -7,6 +7,8 @@
   <title>Gestão de acessos · ClimaFlux ERP</title>
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/admin-access.css">
+  <link rel="stylesheet" href="/session-preview.css">
+  <script src="/session-preview.js" defer></script>
   <script src="/admin-access.js" defer></script>
 </head>
 <body>
@@ -15,7 +17,10 @@
       <a class="brand" href="/">ClimaFlux ERP</a>
       <span class="version">Prévia de acessos</span>
     </div>
-    <a class="back-link" href="/">Voltar ao ERP</a>
+    <div class="topbar-actions">
+      <a class="back-link" href="/">Voltar ao ERP</a>
+      <button id="logoutButton" type="button">Sair do sistema</button>
+    </div>
   </header>
 
   <main class="page-shell">

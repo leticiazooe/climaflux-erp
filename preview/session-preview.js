@@ -37,6 +37,17 @@
     if (dialog.open) dialog.close();
   }
 
+  function endSession() {
+    try {
+      localStorage.removeItem(SESSION_KEY);
+      localStorage.removeItem('climaflux-preview-session-started-at');
+      sessionStorage.clear();
+    } catch (error) {
+      console.warn('Não foi possível limpar a sessão demonstrativa.', error);
+    }
+    location.replace(`${LOGIN_PATH}?signedOut=1`);
+  }
+
   function createLogoutDialog() {
     const dialog = document.createElement('dialog');
     dialog.className = 'climaflux-session-dialog';
@@ -67,13 +78,7 @@
     confirm.textContent = 'Sair do sistema';
     confirm.addEventListener('click', () => {
       confirm.disabled = true;
-      try {
-        localStorage.removeItem(SESSION_KEY);
-        sessionStorage.clear();
-      } catch (error) {
-        console.warn('Não foi possível limpar a sessão demonstrativa.', error);
-      }
-      location.replace(`${LOGIN_PATH}?signedOut=1`);
+      endSession();
     });
 
     actions.append(cancel, confirm);
@@ -89,14 +94,11 @@
     button.addEventListener('click', () => {
       const dialog = document.querySelector('.climaflux-session-dialog') || createLogoutDialog();
       if (typeof dialog.showModal === 'function') dialog.showModal();
-      else if (window.confirm('Sair do ClimaFlux ERP?')) {
-        localStorage.removeItem(SESSION_KEY);
-        location.replace(`${LOGIN_PATH}?signedOut=1`);
-      }
+      else if (window.confirm('Sair do ClimaFlux ERP?')) endSession();
     });
   }
 
-  function installLogoutControl() {
+  function installSessionControls() {
     const existing = document.getElementById('logoutButton');
     if (existing) {
       existing.classList.add('climaflux-session-button', 'danger', 'climaflux-topbar-logout');
@@ -104,14 +106,30 @@
       return;
     }
 
-    const button = document.createElement('button');
-    button.id = 'climafluxFloatingLogout';
-    button.type = 'button';
-    button.className = 'climaflux-session-button danger climaflux-floating-logout';
-    button.textContent = 'Sair do sistema';
-    button.setAttribute('aria-label', 'Encerrar sessão e sair do ClimaFlux ERP');
-    document.body.append(button);
-    attachLogoutButton(button);
+    if (document.querySelector('.climaflux-session-dock')) return;
+    const dock = document.createElement('aside');
+    dock.className = 'climaflux-session-dock';
+    dock.setAttribute('aria-label', 'Controles da sessão demonstrativa');
+
+    const badge = document.createElement('span');
+    badge.className = 'climaflux-session-badge';
+    badge.textContent = 'Sessão demonstrativa';
+
+    const access = document.createElement('a');
+    access.className = 'climaflux-session-link';
+    access.href = '/admin-access.html';
+    access.textContent = 'Gestão de acessos';
+
+    const logout = document.createElement('button');
+    logout.id = 'climafluxFloatingLogout';
+    logout.type = 'button';
+    logout.className = 'climaflux-session-button danger';
+    logout.textContent = 'Sair';
+    logout.setAttribute('aria-label', 'Encerrar sessão e sair do ClimaFlux ERP');
+
+    dock.append(badge, access, logout);
+    document.body.append(dock);
+    attachLogoutButton(logout);
   }
 
   if (isLoginPage) return;
@@ -120,8 +138,8 @@
     return;
   }
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', installLogoutControl, { once: true });
+    document.addEventListener('DOMContentLoaded', installSessionControls, { once: true });
   } else {
-    installLogoutControl();
+    installSessionControls();
   }
 })();

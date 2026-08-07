@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const schema = await readFile(new URL('../migrations/0003_field_service.sql', import.meta.url), 'utf8');
+const integrity = await readFile(new URL('../migrations/0004_field_service_integrity.sql', import.meta.url), 'utf8');
 const field = await readFile(new URL('../worker/field-service.js', import.meta.url), 'utf8');
 const wrapper = await readFile(new URL('../worker/phase1-worker.js', import.meta.url), 'utf8');
+const operationalWrapper = await readFile(new URL('../worker/saas-worker.js', import.meta.url), 'utf8');
 const wrangler = await readFile(new URL('../wrangler.jsonc', import.meta.url), 'utf8');
 const client = await readFile(new URL('../auth/auth-client.js', import.meta.url), 'utf8');
 
@@ -13,6 +15,7 @@ test('schema de campo possui agenda, checklist, medições e histórico', () => 
     assert.match(schema, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}\\b`));
   }
   assert.match(schema, /schema_version', '3'/);
+  assert.match(integrity, /schema_version', '4'/);
 });
 
 test('relações da operação de campo carregam tenant composto', () => {
@@ -31,10 +34,13 @@ test('banco exige técnico ativo e a mesma atribuição da OS', () => {
   assert.match(schema, /FIELD_WORK_ORDER_INVALID/);
 });
 
-test('OS com visita ativa bloqueia troca de técnico', () => {
+test('OS com visita ativa bloqueia troca de técnico e encerramento', () => {
   assert.match(schema, /trg_work_order_technician_active_visit_guard/);
+  assert.match(integrity, /trg_work_order_terminal_active_visit_guard/);
   assert.match(schema, /WORK_ORDER_ACTIVE_VISIT_EXISTS/);
-  assert.match(schema, /v\.status NOT IN \('completed', 'cancelled'\)/);
+  assert.match(integrity, /WORK_ORDER_ACTIVE_VISIT_EXISTS/);
+  assert.match(integrity, /NEW\.status IN \('completed', 'cancelled'\)/);
+  assert.match(operationalWrapper, /WORK_ORDER_ACTIVE_VISIT_EXISTS/);
 });
 
 test('datas reais e planejadas possuem guardas no D1', () => {

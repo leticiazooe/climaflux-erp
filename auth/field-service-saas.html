@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Agenda técnica · ClimaFlux ERP</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/auth.css">
+  <link rel="stylesheet" href="/operations.css">
+  <script src="/auth-client.js" defer></script>
+  <script src="/field-service-saas.js" defer></script>
+</head>
+<body class="saas-page">
+  <header class="saas-header">
+    <div>
+      <strong>ClimaFlux ERP</strong>
+      <div>Agenda técnica · <span id="tenantLabel">empresa</span></div>
+    </div>
+    <nav class="saas-header-nav" aria-label="Navegação SaaS">
+      <a href="/">ERP</a>
+      <a href="/customers-saas.html">Clientes</a>
+      <a href="/equipment-saas.html">Equipamentos</a>
+      <a href="/work-orders-saas.html">Ordens</a>
+      <a id="accessNavLink" href="/admin-access.html">Acessos</a>
+    </nav>
+  </header>
+
+  <main class="saas-main saas-main-wide">
+    <section class="saas-heading">
+      <div>
+        <span class="saas-kicker">OPERAÇÃO DE CAMPO</span>
+        <h1>Agenda e visitas técnicas</h1>
+        <p>Planejamento conectado à OS, execução pelo técnico autenticado, checklist e medições persistidos no D1.</p>
+      </div>
+      <button id="newVisitButton" class="saas-button" type="button">Agendar visita</button>
+    </section>
+
+    <aside class="saas-callout">
+      <strong>Escopo desta etapa</strong>
+      <span>Checklist e medições já são persistidos no backend. Fotos, anexos e assinatura digital entram na etapa de armazenamento R2.</span>
+    </aside>
+
+    <section class="saas-card saas-toolbar saas-field-toolbar" aria-label="Filtros da agenda">
+      <label>De<input id="fromInput" class="saas-input" type="date"></label>
+      <label>Até<input id="toInput" class="saas-input" type="date"></label>
+      <label>Status
+        <select id="statusFilter" class="saas-input">
+          <option value="">Todos</option>
+          <option value="planned">Planejada</option>
+          <option value="en_route">A caminho</option>
+          <option value="on_site">No local</option>
+          <option value="completed">Concluída</option>
+          <option value="cancelled">Cancelada</option>
+        </select>
+      </label>
+      <button id="refreshButton" class="saas-button secondary" type="button">Atualizar</button>
+    </section>
+
+    <div id="feedback" class="saas-feedback" role="status" aria-live="polite"></div>
+    <section id="visitGrid" class="saas-grid" aria-live="polite"></section>
+
+    <footer class="saas-pagination">
+      <button id="previousButton" class="saas-button secondary" type="button">Anterior</button>
+      <span id="pageLabel">0 visitas</span>
+      <button id="nextButton" class="saas-button secondary" type="button">Próxima</button>
+    </footer>
+  </main>
+
+  <dialog id="visitDialog" class="saas-dialog saas-dialog-wide">
+    <form id="visitForm" class="saas-form">
+      <div class="saas-dialog-header">
+        <div><span class="saas-kicker">AGENDA</span><h2 id="visitDialogTitle">Nova visita</h2></div>
+        <button id="closeVisitButton" class="saas-button secondary" type="button">Fechar</button>
+      </div>
+      <input id="visitId" type="hidden">
+      <div class="saas-form-grid">
+        <label>Ordem de serviço
+          <select id="visitWorkOrder" class="saas-input" required></select>
+        </label>
+        <label>Técnico
+          <select id="visitTechnician" class="saas-input" required></select>
+        </label>
+        <label>Início
+          <input id="visitStart" class="saas-input" type="datetime-local" required>
+        </label>
+        <label>Término previsto
+          <input id="visitEnd" class="saas-input" type="datetime-local">
+        </label>
+        <label class="saas-span-2">Observações
+          <textarea id="visitNotes" class="saas-input saas-textarea" maxlength="3000"></textarea>
+        </label>
+      </div>
+      <div class="saas-dialog-actions">
+        <button id="cancelVisitButton" class="saas-button secondary" type="button">Cancelar</button>
+        <button id="saveVisitButton" class="saas-button" type="submit">Salvar visita</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="statusDialog" class="saas-dialog">
+    <form id="statusForm" class="saas-form">
+      <div class="saas-dialog-header">
+        <div><span class="saas-kicker">FLUXO DA VISITA</span><h2 id="statusDialogTitle">Alterar status</h2></div>
+        <button id="closeStatusButton" class="saas-button secondary" type="button">Fechar</button>
+      </div>
+      <input id="statusVisitId" type="hidden">
+      <label>Próximo status<select id="nextStatus" class="saas-input" required></select></label>
+      <label>Motivo / observação<textarea id="statusNote" class="saas-input saas-textarea" maxlength="2000"></textarea></label>
+      <div class="saas-dialog-actions">
+        <button id="cancelStatusButton" class="saas-button secondary" type="button">Cancelar</button>
+        <button id="saveStatusButton" class="saas-button" type="submit">Aplicar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="detailDialog" class="saas-dialog saas-dialog-detail">
+    <div class="saas-history-shell">
+      <div class="saas-dialog-header">
+        <div><span class="saas-kicker">EXECUÇÃO TÉCNICA</span><h2 id="detailTitle">Visita</h2></div>
+        <button id="closeDetailButton" class="saas-button secondary" type="button">Fechar</button>
+      </div>
+      <div id="detailSummary" class="saas-visit-summary"></div>
+
+      <section class="saas-detail-section">
+        <div class="saas-section-heading"><div><h3>Checklist</h3><p>Itens não conformes exigem observação.</p></div></div>
+        <form id="checklistForm"><div id="checklistGrid" class="saas-checklist"></div>
+          <div class="saas-dialog-actions"><button id="saveChecklistButton" class="saas-button" type="submit">Salvar checklist</button></div>
+        </form>
+      </section>
+
+      <section class="saas-detail-section">
+        <div class="saas-section-heading"><div><h3>Medições</h3><p>Registre temperatura, pressão, tensão, corrente ou outras medições do atendimento.</p></div></div>
+        <form id="measurementForm" class="saas-measurement-form">
+          <label>Nome<input id="measurementName" class="saas-input" placeholder="Ex.: Corrente compressor" required></label>
+          <label>Valor<input id="measurementValue" class="saas-input" type="number" step="any" required></label>
+          <label>Unidade<input id="measurementUnit" class="saas-input" placeholder="A, V, °C, bar..."></label>
+          <button id="saveMeasurementButton" class="saas-button" type="submit">Adicionar</button>
+        </form>
+        <div id="measurementGrid" class="saas-measurement-grid"></div>
+      </section>
+
+      <section class="saas-detail-section">
+        <div class="saas-section-heading"><div><h3>Histórico da visita</h3><p>Eventos persistidos e imutáveis.</p></div></div>
+        <div id="eventGrid" class="saas-timeline"></div>
+      </section>
+    </div>
+  </dialog>
+</body>
+</html>

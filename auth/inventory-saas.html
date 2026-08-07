@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Estoque · ClimaFlux ERP</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/auth.css">
+  <link rel="stylesheet" href="/operations.css">
+  <script src="/auth-client.js" defer></script>
+  <script src="/inventory-saas.js" defer></script>
+</head>
+<body class="saas-page">
+  <header class="saas-header">
+    <div><strong>ClimaFlux ERP</strong><div>Estoque SaaS · <span id="tenantLabel">empresa</span></div></div>
+    <nav class="saas-header-nav" aria-label="Navegação SaaS">
+      <a href="/">ERP</a><a href="/customers-saas.html">Clientes</a><a href="/work-orders-saas.html">Ordens</a><a href="/field-service-saas.html">Agenda</a><a id="accessNavLink" href="/admin-access.html">Acessos</a>
+    </nav>
+  </header>
+
+  <main class="saas-main saas-main-wide">
+    <section class="saas-heading">
+      <div><span class="saas-kicker">ESTOQUE TRANSACIONAL</span><h1>Materiais e movimentações</h1><p>Saldo calculado pelo livro imutável de entradas e saídas, sempre isolado pela empresa autenticada.</p></div>
+      <div class="saas-actions saas-actions-wrap"><button id="newLocationButton" class="saas-button secondary" type="button">Novo local</button><button id="newItemButton" class="saas-button secondary" type="button">Novo item</button><button id="newMovementButton" class="saas-button" type="button">Movimentar</button></div>
+    </section>
+
+    <aside class="saas-callout"><strong>Integridade de saldo</strong><span>Movimentações não podem ser editadas ou excluídas. Se uma saída causaria saldo negativo, o banco cancela a operação inteira.</span></aside>
+
+    <section class="saas-inventory-metrics">
+      <article class="saas-card"><small>Itens ativos</small><strong id="activeItemsMetric">0</strong></article>
+      <article class="saas-card"><small>Itens abaixo do mínimo</small><strong id="lowItemsMetric">0</strong></article>
+      <article class="saas-card"><small>Locais ativos</small><strong id="locationsMetric">0</strong></article>
+      <article class="saas-card"><small>Movimentos carregados</small><strong id="movementsMetric">0</strong></article>
+    </section>
+
+    <section class="saas-card saas-toolbar saas-inventory-toolbar">
+      <input id="searchInput" class="saas-input" type="search" placeholder="Buscar SKU ou material">
+      <select id="itemStatusFilter" class="saas-input"><option value="active">Ativos</option><option value="">Todos</option><option value="inactive">Inativos</option></select>
+      <label class="saas-inline-check"><input id="lowOnlyInput" type="checkbox"> Somente abaixo do mínimo</label>
+      <button id="refreshButton" class="saas-button secondary" type="button">Atualizar</button>
+    </section>
+
+    <div id="feedback" class="saas-feedback" role="status" aria-live="polite"></div>
+
+    <section class="saas-detail-section">
+      <div class="saas-section-heading"><div><h2>Materiais</h2><p>Saldo total somado entre todos os locais.</p></div></div>
+      <div id="itemGrid" class="saas-grid"></div>
+    </section>
+
+    <section class="saas-detail-section">
+      <div class="saas-section-heading"><div><h2>Saldo por local</h2><p>Visão física por almoxarifado, veículo ou outro local cadastrado.</p></div><select id="balanceLocationFilter" class="saas-input saas-compact-select"><option value="">Todos os locais</option></select></div>
+      <div id="balanceGrid" class="saas-grid"></div>
+    </section>
+
+    <section class="saas-detail-section">
+      <div class="saas-section-heading"><div><h2>Últimas movimentações</h2><p>Livro de estoque somente acréscimo.</p></div></div>
+      <div id="movementGrid" class="saas-grid"></div>
+    </section>
+  </main>
+
+  <dialog id="itemDialog" class="saas-dialog saas-dialog-wide">
+    <form id="itemForm" class="saas-form">
+      <div class="saas-dialog-header"><div><span class="saas-kicker">CATÁLOGO</span><h2 id="itemDialogTitle">Novo item</h2></div><button id="closeItemButton" class="saas-button secondary" type="button">Fechar</button></div>
+      <input id="itemId" type="hidden">
+      <div class="saas-form-grid">
+        <label>SKU<input id="itemSku" class="saas-input" maxlength="80" required></label>
+        <label>Nome<input id="itemName" class="saas-input" maxlength="200" required></label>
+        <label>Unidade<input id="itemUnit" class="saas-input" value="un" maxlength="20" required></label>
+        <label>Estoque mínimo<input id="itemMinimum" class="saas-input" type="number" min="0" step="any" value="0"></label>
+        <label>Custo de referência (R$)<input id="itemCost" class="saas-input" type="number" min="0" step="0.01" value="0"></label>
+        <label>Status<select id="itemStatus" class="saas-input"><option value="active">Ativo</option><option value="inactive">Inativo</option></select></label>
+        <label class="saas-span-2">Descrição<textarea id="itemDescription" class="saas-input saas-textarea" maxlength="2000"></textarea></label>
+      </div>
+      <div class="saas-dialog-actions"><button id="cancelItemButton" class="saas-button secondary" type="button">Cancelar</button><button id="saveItemButton" class="saas-button" type="submit">Salvar item</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="locationDialog" class="saas-dialog">
+    <form id="locationForm" class="saas-form">
+      <div class="saas-dialog-header"><div><span class="saas-kicker">LOCAL FÍSICO</span><h2>Novo local de estoque</h2></div><button id="closeLocationButton" class="saas-button secondary" type="button">Fechar</button></div>
+      <label>Código<input id="locationCode" class="saas-input" maxlength="60" placeholder="ALMOX-01" required></label>
+      <label>Nome<input id="locationName" class="saas-input" maxlength="160" placeholder="Almoxarifado principal" required></label>
+      <div class="saas-dialog-actions"><button id="cancelLocationButton" class="saas-button secondary" type="button">Cancelar</button><button id="saveLocationButton" class="saas-button" type="submit">Criar local</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="movementDialog" class="saas-dialog saas-dialog-wide">
+    <form id="movementForm" class="saas-form">
+      <div class="saas-dialog-header"><div><span class="saas-kicker">LIVRO DE ESTOQUE</span><h2>Nova movimentação</h2></div><button id="closeMovementButton" class="saas-button secondary" type="button">Fechar</button></div>
+      <div class="saas-form-grid">
+        <label>Material<select id="movementItem" class="saas-input" required></select></label>
+        <label>Local<select id="movementLocation" class="saas-input" required></select></label>
+        <label>Tipo<select id="movementType" class="saas-input" required></select></label>
+        <label>Quantidade<input id="movementQuantity" class="saas-input" type="number" min="0.000001" step="any" required></label>
+        <label id="workOrderField">Ordem de serviço<select id="movementWorkOrder" class="saas-input"></select></label>
+        <label>Custo unitário (R$)<input id="movementCost" class="saas-input" type="number" min="0" step="0.01"></label>
+        <label class="saas-span-2">Observação<textarea id="movementNotes" class="saas-input saas-textarea" maxlength="2000"></textarea></label>
+      </div>
+      <div class="saas-dialog-actions"><button id="cancelMovementButton" class="saas-button secondary" type="button">Cancelar</button><button id="saveMovementButton" class="saas-button" type="submit">Registrar movimentação</button></div>
+    </form>
+  </dialog>
+</body>
+</html>

@@ -5,152 +5,25 @@ import { dirname, resolve, sep } from 'node:path';
 
 const ROOT = resolve(process.cwd());
 const RELEASE_DIR = resolve(ROOT, '.release-v060');
-const PREVIEW_DIR = resolve(ROOT, 'preview');
+const AUTH_DIR = resolve(ROOT, 'auth');
 const OUTPUT_DIR = resolve(ROOT, 'public');
 const EXPECTED_ARCHIVE_SHA256 = '276dc082e046d202aeab91b807ee3bba9b20a403eba0187163f14e107b3750a5';
 const EXPECTED_PARTS = [
-  ['part-00.b64', '78fe38d2442d6557b2e51f6c7e984d166a81d920'],
-  ['part-01.b64', 'c6a9553b290ffe83a6db14704e0299e5c5ee5cb5'],
-  ['part-02.b64', 'a72d044405624fc265a97835d9c383987ed33f3b'],
-  ['part-03.b64', 'db54805e874432daf944d490ac09da4be58c35ef'],
-  ['part-04.b64', '90c4ec557662663f432c36d21a64d749dd9076cc'],
-  ['part-05.b64', '915959247ade3619ebf238f34dab3c306ecb64c1'],
-  ['part-06.b64', 'bb93fa08140a25c07c3ca85485c917ca1bf34699'],
-  ['part-07.b64', '943676681b33f7cd898b6f8c1a3321eb13c4cd61'],
-  ['part-08.b64', '6116c1af545bec858a8ac6b471b3773934093d59'],
-  ['part-09.b64', '3458ce6daeec2f9414cb3bf7616b36e3e7e0c0eb'],
-  ['part-10a.b64', '9134478c5d2ec43589ce35ffc32755f7f5242aeb'],
-  ['part-10b.b64', '394e720786c012e89224d9c5d4875f500dee4a73'],
-  ['part-11.b64', '779bcfb6473e2d34c86c3a91632970c9063e6c03'],
-  ['part-12.b64', 'fc0b54ba2c3255c5a693a2ccf4210b9e2fa29bd6'],
-  ['part-13.b64', 'e2b9ded5f386ffe86d3da022099499aae093fdfe'],
-  ['part-14.b64', '5f0705f5e0af1b837f40d8e9c3d13afaa56894a6'],
-  ['part-15.b64', '5f6362090698f7d8bb3d49af1d6d3d78dd8bc40f'],
-  ['part-16.b64', '0fcbdc07252141c9b0cf956f404aa03d187c7f4c'],
-  ['part-17.b64', '2cb3d7f52ab59d6daf79e8b8a0b7371dbe6511c1'],
-  ['part-18.b64', '453a53ba4271dcf22d37fdf9778f31623675c9b8'],
-  ['part-19.b64', 'f8ca1db72aa04cb836390996bfd47f1e6ef73595'],
-  ['part-20.b64', '2dc1c98a801867dc0962d1dbe7335e1edcbe0afe'],
-  ['part-21.b64', '1dfe0cf58497b1df855133de9c56083fe1682680'],
-  ['part-22a.b64', '9b823267b28019ff820d153717f9c2b97e47e6a7'],
-  ['part-22b.b64', '9dd767838b468b92e2ec7223cab04fbd9ebd2add'],
-  ['part-23.b64', '7fade86fb25b776606eb115953ed6c64baceda72'],
-  ['part-24.b64', 'ae8a94af4273ff4741f0fe1f6bb3cc40cecfd19a'],
+  ['part-00.b64','78fe38d2442d6557b2e51f6c7e984d166a81d920'],['part-01.b64','c6a9553b290ffe83a6db14704e0299e5c5ee5cb5'],['part-02.b64','a72d044405624fc265a97835d9c383987ed33f3b'],['part-03.b64','db54805e874432daf944d490ac09da4be58c35ef'],['part-04.b64','90c4ec557662663f432c36d21a64d749dd9076cc'],['part-05.b64','915959247ade3619ebf238f34dab3c306ecb64c1'],['part-06.b64','bb93fa08140a25c07c3ca85485c917ca1bf34699'],['part-07.b64','943676681b33f7cd898b6f8c1a3321eb13c4cd61'],['part-08.b64','6116c1af545bec858a8ac6b471b3773934093d59'],['part-09.b64','3458ce6daeec2f9414cb3bf7616b36e3e7e0c0eb'],['part-10a.b64','9134478c5d2ec43589ce35ffc32755f7f5242aeb'],['part-10b.b64','394e720786c012e89224d9c5d4875f500dee4a73'],['part-11.b64','779bcfb6473e2d34c86c3a91632970c9063e6c03'],['part-12.b64','fc0b54ba2c3255c5a693a2ccf4210b9e2fa29bd6'],['part-13.b64','e2b9ded5f386ffe86d3da022099499aae093fdfe'],['part-14.b64','5f0705f5e0af1b837f40d8e9c3d13afaa56894a6'],['part-15.b64','5f6362090698f7d8bb3d49af1d6d3d78dd8bc40f'],['part-16.b64','0fcbdc07252141c9b0cf956f404aa03d187c7f4c'],['part-17.b64','2cb3d7f52ab59d6daf79e8b8a0b7371dbe6511c1'],['part-18.b64','453a53ba4271dcf22d37fdf9778f31623675c9b8'],['part-19.b64','f8ca1db72aa04cb836390996bfd47f1e6ef73595'],['part-20.b64','2dc1c98a801867dc0962d1dbe7335e1edcbe0afe'],['part-21.b64','1dfe0cf58497b1df855133de9c56083fe1682680'],['part-22a.b64','9b823267b28019ff820d153717f9c2b97e47e6a7'],['part-22b.b64','9dd767838b468b92e2ec7223cab04fbd9ebd2add'],['part-23.b64','7fade86fb25b776606eb115953ed6c64baceda72'],['part-24.b64','ae8a94af4273ff4741f0fe1f6bb3cc40cecfd19a'],
 ];
-const RELEASE_ASSETS = ['app.js', 'domain.js', 'icon.svg', 'index.html', 'manifest.webmanifest', 'styles.css', 'sw.js'];
-const PREVIEW_ASSETS = [
-  ['admin-access.html', 'admin-access.html'],
-  ['admin-access.css', 'admin-access.css'],
-  ['admin-access.js', 'admin-access.js'],
-  ['login.html', 'login.html'],
-  ['login-preview.js', 'login-preview.js'],
-  ['session-preview.css', 'session-preview.css'],
-  ['session-preview.js', 'session-preview.js'],
-  ['session-sw.js', 'sw.js'],
+const RELEASE_ASSETS = ['app.js','domain.js','icon.svg','index.html','manifest.webmanifest','styles.css','sw.js'];
+const AUTH_ASSETS = [
+  ['auth.css','auth.css'],['operations.css','operations.css'],['login.html','login.html'],['login.js','login.js'],['auth-client.js','auth-client.js'],
+  ['admin-access.html','admin-access.html'],['admin-access.js','admin-access.js'],['customers-saas.html','customers-saas.html'],['customers-saas.js','customers-saas.js'],
+  ['equipment-saas.html','equipment-saas.html'],['equipment-saas.js','equipment-saas.js'],['work-orders-saas.html','work-orders-saas.html'],['work-orders-saas.js','work-orders-saas.js'],
+  ['field-service-saas.html','field-service-saas.html'],['field-service-saas.js','field-service-saas.js'],['inventory-saas.html','inventory-saas.html'],['inventory-saas.js','inventory-saas.js'],['secure-sw.js','sw.js'],
 ];
 
-function gitBlobSha1(buffer) {
-  const header = Buffer.from(`blob ${buffer.length}\0`);
-  return createHash('sha1').update(header).update(buffer).digest('hex');
-}
-
-async function rebuildArchive() {
-  const encoded = [];
-  for (const [name, expectedSha] of EXPECTED_PARTS) {
-    const raw = await readFile(resolve(RELEASE_DIR, name));
-    const actualSha = gitBlobSha1(raw);
-    if (actualSha !== expectedSha) throw new Error(`Parte corrompida: ${name}. Esperado ${expectedSha}, recebido ${actualSha}.`);
-    encoded.push(raw.toString('utf8'));
-  }
-  const archive = Buffer.from(encoded.join('').replace(/\s/g, ''), 'base64');
-  const actualArchiveSha = createHash('sha256').update(archive).digest('hex');
-  if (actualArchiveSha !== EXPECTED_ARCHIVE_SHA256) {
-    throw new Error(`Falha de integridade do release: esperado ${EXPECTED_ARCHIVE_SHA256}, recebido ${actualArchiveSha}.`);
-  }
-  return archive;
-}
-
-function parseOctal(buffer) {
-  const value = buffer.toString('utf8').replace(/\0/g, '').trim();
-  return value ? Number.parseInt(value, 8) : 0;
-}
-
-async function extractTar(tarBuffer) {
-  await rm(OUTPUT_DIR, { recursive: true, force: true });
-  await mkdir(OUTPUT_DIR, { recursive: true });
-  let offset = 0;
-  const extracted = [];
-  while (offset + 512 <= tarBuffer.length) {
-    const header = tarBuffer.subarray(offset, offset + 512);
-    if (header.every((byte) => byte === 0)) break;
-    const rawName = header.subarray(0, 100).toString('utf8').replace(/\0.*$/, '');
-    const prefix = header.subarray(345, 500).toString('utf8').replace(/\0.*$/, '');
-    const name = `${prefix ? `${prefix}/` : ''}${rawName}`.replace(/^\.\//, '');
-    const size = parseOctal(header.subarray(124, 136));
-    const type = String.fromCharCode(header[156] || 48);
-    const dataStart = offset + 512;
-    const dataEnd = dataStart + size;
-    if (name && type !== '5') {
-      if (!RELEASE_ASSETS.includes(name)) throw new Error(`Arquivo inesperado no release público: ${name}`);
-      const target = resolve(OUTPUT_DIR, name);
-      if (!target.startsWith(`${OUTPUT_DIR}${sep}`) && target !== OUTPUT_DIR) throw new Error(`Caminho inseguro no release: ${name}`);
-      await mkdir(dirname(target), { recursive: true });
-      await writeFile(target, tarBuffer.subarray(dataStart, dataEnd));
-      extracted.push(name);
-    }
-    offset = dataStart + Math.ceil(size / 512) * 512;
-  }
-  const missing = RELEASE_ASSETS.filter((asset) => !extracted.includes(asset));
-  if (missing.length) throw new Error(`Assets obrigatórios ausentes: ${missing.join(', ')}.`);
-  if (extracted.length !== RELEASE_ASSETS.length) throw new Error(`Quantidade inesperada de assets do ERP: ${extracted.length}.`);
-}
-
-async function installPreviewAssets() {
-  for (const [source, target] of PREVIEW_ASSETS) await copyFile(resolve(PREVIEW_DIR, source), resolve(OUTPUT_DIR, target));
-  const indexPath = resolve(OUTPUT_DIR, 'index.html');
-  let html = await readFile(indexPath, 'utf8');
-  if (!html.includes('/session-preview.css')) html = html.replace('</head>', '  <link rel="stylesheet" href="/session-preview.css">\n</head>');
-  if (!html.includes('/session-preview.js')) html = html.replace('</body>', '  <script src="/session-preview.js" defer></script>\n</body>');
-  await writeFile(indexPath, html);
-}
-
-async function validatePublicOutput() {
-  const required = [...new Set([...RELEASE_ASSETS, ...PREVIEW_ASSETS.map(([, target]) => target)])];
-  for (const asset of required) {
-    const content = await readFile(resolve(OUTPUT_DIR, asset));
-    if (!content.length) throw new Error(`Asset público vazio: ${asset}.`);
-  }
-  const index = await readFile(resolve(OUTPUT_DIR, 'index.html'), 'utf8');
-  if (!index.includes('/session-preview.css') || !index.includes('/session-preview.js')) {
-    throw new Error('O ERP não recebeu os controles de sessão demonstrativa.');
-  }
-  const admin = await readFile(resolve(OUTPUT_DIR, 'admin-access.html'), 'utf8');
-  if (!admin.includes('logoutButton') || !admin.includes('/session-preview.js')) {
-    throw new Error('A Gestão de Acessos não recebeu o botão de saída.');
-  }
-  const login = await readFile(resolve(OUTPUT_DIR, 'login.html'), 'utf8');
-  if (!login.includes('enterDemoButton') || !login.includes('/login-preview.js')) {
-    throw new Error('A tela de entrada demonstrativa está incompleta.');
-  }
-  const sessionScript = await readFile(resolve(OUTPUT_DIR, 'session-preview.js'), 'utf8');
-  if (!sessionScript.includes('climaflux-preview-session-v1') || !sessionScript.includes('Sair do sistema')) {
-    throw new Error('O fluxo demonstrativo de sessão e saída está incompleto.');
-  }
-  const serviceWorker = await readFile(resolve(OUTPUT_DIR, 'sw.js'), 'utf8');
-  if (!serviceWorker.includes('climaflux-v062-session-shell') || !serviceWorker.includes('/login.html')) {
-    throw new Error('O service worker não invalida o cache anterior da sessão.');
-  }
-  return required.length;
-}
-
-try {
-  console.log('Preparando ClimaFlux ERP v0.6.2...');
-  const archive = await rebuildArchive();
-  await extractTar(gunzipSync(archive));
-  await installPreviewAssets();
-  const count = await validatePublicOutput();
-  console.log(`ClimaFlux ERP v0.6.2 validado: ${count} arquivo(s) públicos em ${OUTPUT_DIR}.`);
-} catch (error) {
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
-}
+function gitBlobSha1(buffer){const header=Buffer.from(`blob ${buffer.length}\0`);return createHash('sha1').update(header).update(buffer).digest('hex');}
+async function rebuildArchive(){const encoded=[];for(const [name,expectedSha] of EXPECTED_PARTS){const raw=await readFile(resolve(RELEASE_DIR,name));const actualSha=gitBlobSha1(raw);if(actualSha!==expectedSha)throw new Error(`Parte corrompida: ${name}. Esperado ${expectedSha}, recebido ${actualSha}.`);encoded.push(raw.toString('utf8'));}const archive=Buffer.from(encoded.join('').replace(/\s/g,''),'base64');const actualArchiveSha=createHash('sha256').update(archive).digest('hex');if(actualArchiveSha!==EXPECTED_ARCHIVE_SHA256)throw new Error(`Falha de integridade do release: esperado ${EXPECTED_ARCHIVE_SHA256}, recebido ${actualArchiveSha}.`);return archive;}
+function parseOctal(buffer){const value=buffer.toString('utf8').replace(/\0/g,'').trim();return value?Number.parseInt(value,8):0;}
+async function extractTar(tarBuffer){await rm(OUTPUT_DIR,{recursive:true,force:true});await mkdir(OUTPUT_DIR,{recursive:true});let offset=0;const extracted=[];while(offset+512<=tarBuffer.length){const header=tarBuffer.subarray(offset,offset+512);if(header.every((byte)=>byte===0))break;const rawName=header.subarray(0,100).toString('utf8').replace(/\0.*$/,'');const prefix=header.subarray(345,500).toString('utf8').replace(/\0.*$/,'');const name=`${prefix?`${prefix}/`:''}${rawName}`.replace(/^\.\//,'');const size=parseOctal(header.subarray(124,136));const type=String.fromCharCode(header[156]||48);const dataStart=offset+512;const dataEnd=dataStart+size;if(name&&type!=='5'){if(!RELEASE_ASSETS.includes(name))throw new Error(`Arquivo inesperado no release público: ${name}`);const target=resolve(OUTPUT_DIR,name);if(!target.startsWith(`${OUTPUT_DIR}${sep}`)&&target!==OUTPUT_DIR)throw new Error(`Caminho inseguro no release: ${name}`);await mkdir(dirname(target),{recursive:true});await writeFile(target,tarBuffer.subarray(dataStart,dataEnd));extracted.push(name);}offset=dataStart+Math.ceil(size/512)*512;}const missing=RELEASE_ASSETS.filter((asset)=>!extracted.includes(asset));if(missing.length)throw new Error(`Assets obrigatórios ausentes: ${missing.join(', ')}.`);if(extracted.length!==RELEASE_ASSETS.length)throw new Error(`Quantidade inesperada de assets do ERP: ${extracted.length}.`);}
+async function installAuthenticationAssets(){for(const [source,target] of AUTH_ASSETS)await copyFile(resolve(AUTH_DIR,source),resolve(OUTPUT_DIR,target));const indexPath=resolve(OUTPUT_DIR,'index.html');let html=await readFile(indexPath,'utf8');if(!html.includes('name="climaflux-version"'))html=html.replace('</head>','  <meta name="climaflux-version" content="0.7.0">\n</head>');if(!html.includes('/auth.css'))html=html.replace('</head>','  <link rel="stylesheet" href="/auth.css">\n</head>');if(!html.includes('/auth-client.js'))html=html.replace('</body>','  <script src="/auth-client.js" defer></script>\n</body>');await writeFile(indexPath,html);}
+async function requireContent(asset,needle,message){const content=await readFile(resolve(OUTPUT_DIR,asset),'utf8');if(!content.includes(needle))throw new Error(message);}
+async function validatePublicOutput(){const required=[...new Set([...RELEASE_ASSETS,...AUTH_ASSETS.map(([,target])=>target)])];for(const asset of required){const content=await readFile(resolve(OUTPUT_DIR,asset));if(!content.length)throw new Error(`Asset público vazio: ${asset}.`);}await requireContent('index.html','/auth-client.js','O ERP não recebeu a proteção de autenticação SaaS.');await requireContent('index.html','0.7.0','A versão SaaS não foi identificada no shell.');await requireContent('login.html','accounts.google.com/gsi/client','A tela Google está incompleta.');await requireContent('admin-access.html','/admin-access.js','A Gestão de Acessos SaaS está incompleta.');await requireContent('customers-saas.html','/customers-saas.js','O módulo de Clientes SaaS está incompleto.');await requireContent('equipment-saas.html','/equipment-saas.js','O módulo de Equipamentos SaaS está incompleto.');await requireContent('work-orders-saas.html','TRILHA IMUTÁVEL','A tela de histórico da OS está incompleta.');await requireContent('field-service-saas.html','Checklist','A execução técnica não recebeu checklist.');await requireContent('field-service-saas.html','Medições','A execução técnica não recebeu medições.');await requireContent('inventory-saas.html','LIVRO DE ESTOQUE','A tela de estoque não recebeu o livro de movimentações.');await requireContent('inventory-saas.html','Integridade de saldo','A tela de estoque não informa a regra de saldo.');const serviceWorker=await readFile(resolve(OUTPUT_DIR,'sw.js'),'utf8');if(!serviceWorker.includes('climaflux-saas-public-v070')||!serviceWorker.includes("pathname.startsWith('/api/')"))throw new Error('O service worker não protege as respostas autenticadas.');return required.length;}
+try{console.log('Preparando ClimaFlux ERP v0.7.0 — Fundação SaaS operacional...');const archive=await rebuildArchive();await extractTar(gunzipSync(archive));await installAuthenticationAssets();const count=await validatePublicOutput();console.log(`ClimaFlux ERP v0.7.0 validado: ${count} arquivo(s) públicos protegidos em ${OUTPUT_DIR}.`);}catch(error){console.error(error instanceof Error?error.message:error);process.exitCode=1;}

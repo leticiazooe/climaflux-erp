@@ -1,5 +1,53 @@
 # Changelog
 
+## 0.7.0 — 2026-08-07
+
+### Adicionado
+
+- Cloudflare Worker executado antes dos assets estáticos.
+- Autenticação Google com validação criptográfica no servidor.
+- Sessões revogáveis no D1 com cookie `Secure`, `HttpOnly` e `SameSite=Lax`.
+- Multiempresa real com tenants, vínculos, convites, RBAC e auditoria.
+- CSRF, nonce, validação de origem e rate limiting.
+- Health check, migrations versionadas e idempotência.
+- Clientes SaaS em `/customers-saas.html`.
+- Equipamentos SaaS em `/equipment-saas.html`.
+- Ordens de Serviço e histórico imutável em `/work-orders-saas.html`.
+- Agenda e operação de campo em `/field-service-saas.html`, com checklist, medições e histórico.
+- Estoque transacional em `/inventory-saas.html`.
+- Livro de movimentações imutável com saldos derivados no banco.
+- Bloqueio de saldo negativo diretamente no D1.
+- Consumo e devolução de materiais vinculados a Ordens de Serviço.
+- Proteção contra saldo inicial duplicado e devolução acima do material consumido.
+- Package lock reproduzível e Dependabot.
+
+### Alterado
+
+- Sessão demonstrativa da v0.6.2 substituída pela camada autenticada na branch da Fase 1.
+- Service worker passou a armazenar apenas assets públicos e nunca respostas de API.
+- Worker principal passou a ser `worker/phase1-worker.js`, compondo identidade, operação, campo e estoque.
+- Quality gate passou a validar migrations 0001–0006 e 24 assets protegidos.
+- Pipeline usa `npm ci`, auditoria das dependências de runtime, syntax check, testes e build verificado.
+
+### Segurança e integridade
+
+- `tenant_id` é sempre derivado da sessão para as APIs de negócio.
+- FKs compostas reforçam relacionamentos dentro do tenant.
+- Técnico enxerga somente próprias OS e visitas.
+- OS com visita ativa não pode trocar de técnico nem ser encerrada.
+- Histórico de OS, visitas e movimentações de estoque é imutável.
+- Movimentações de estoque exigem chave idempotente.
+
+### Pendente para ativação
+
+- Criar OAuth Client ID Web no Google Cloud.
+- Criar D1 `climaflux-saas` e substituir o ID no `wrangler.jsonc`.
+- Configurar secrets do Worker diretamente no Cloudflare.
+- Aplicar migrations 0001–0006 remotamente.
+- Testar duas empresas em homologação.
+- Validar backup/restauração do D1 e URL/logs de homologação.
+- Migrar compras, vendas, financeiro, contratos/SLA, anexos e portal do cliente.
+
 ## 0.6.2 — 2026-08-06
 
 ### Adicionado
@@ -44,55 +92,9 @@
 - Indicadores de SLA e ordens sem técnico.
 - Exportação CSV da fila de despacho.
 - Portal demonstrativo do cliente com equipamentos, ordens, orçamentos e contratos.
-- Resumo copiável do atendimento para comunicação com o cliente.
-- Testes automatizados do cálculo, ordenação e projeção segura do portal.
 
 ### Alterado
 
 - Persistência local migrada para `climaflux-demo-v6`.
 - Cache do PWA atualizado para `climaflux-v060-shell`.
-- Notificações e auditoria passaram a registrar ações de despacho.
 - Release público reduzido aos sete assets necessários e validado pelo SHA-256 `276dc082e046d202aeab91b807ee3bba9b20a403eba0187163f14e107b3750a5`.
-
-## 0.5.0 — 2026-08-06
-
-### Adicionado
-
-- Contexto multiempresa com dados isolados por organização.
-- Seletor de empresa na interface.
-- Central de notificações operacionais.
-- Trilha de auditoria por empresa, usuário e ação.
-- Exportação de backup JSON da base local completa.
-- Restauração de backup com validação e confirmação.
-- Testes automatizados de isolamento multiempresa.
-- Release dividido em 22 partes verificadas individualmente.
-
-### Alterado
-
-- Persistência local migrada para a estrutura v0.5.0.
-- PWA, modo offline e RBAC atualizados para o contexto da empresa selecionada.
-- Build público passou a validar o SHA-256 `c16df5ef402bb1146f0638da5d939d4bb20252ff0028f1b33a2bbfd295387d7d`.
-
-## 0.4.0 — 2026-08-06
-
-### Adicionado
-
-- Aplicação instalável como PWA.
-- Service worker para disponibilidade offline do shell.
-- Indicador de conexão online/offline.
-- Sessões demonstrativas para Administrador, Atendimento, Técnico, Estoque, Financeiro e Gestor.
-- Matrizes de permissão para visualização e execução de ações.
-- Alternância de usuário na interface.
-- Visão do técnico limitada às próprias ordens e agenda.
-- Testes automatizados de autorização por perfil.
-- Build de release com validação individual das partes e SHA-256 final.
-
-### Alterado
-
-- Persistência local migrada para `climaflux-demo-v4`.
-- Deploy Cloudflare passou a publicar somente a pasta `public` validada.
-- Documentação e comandos do projeto atualizados para a versão 0.4.0.
-
-## 0.3.0
-
-- MVP+ com ordens de serviço, operação de campo, agenda, contratos, orçamentos, vendas, estoque, compras e financeiro.

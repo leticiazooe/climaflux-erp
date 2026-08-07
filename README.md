@@ -1,106 +1,139 @@
 # ClimaFlux ERP
 
-ERP demonstrativo **v0.6.2** para empresas de assistência técnica em ar-condicionado e refrigeração. O produto integra atendimento, operação de campo, agenda, clientes, equipamentos, contratos preventivos, orçamentos, vendas, estoque, compras, financeiro, despacho, SLA e uma prévia da gestão de acessos.
+Candidato **v0.7.0 — Fundação SaaS** para empresas de assistência técnica em ar-condicionado e refrigeração.
 
-> **ClimaFlux ERP** é um nome provisório de demonstração. A disponibilidade jurídica e comercial da marca ainda não foi validada.
+> **ClimaFlux ERP** ainda é um nome provisório. A disponibilidade jurídica e comercial da marca precisa ser validada antes da venda.
 
-## Novidades da v0.6.2
+## Fase 1 — estado atual
 
-- Tela de entrada demonstrativa em `/login.html`.
-- Sessão local de navegação antes da autenticação Google definitiva.
-- Botão **Sair do sistema** no ERP e na Gestão de Acessos.
-- Confirmação antes de encerrar a sessão.
-- Redirecionamento seguro para a tela de entrada após o logout.
-- Dados operacionais preservados ao sair; apenas a sessão é encerrada.
-- Atalho flutuante para `/admin-access.html` dentro do ERP.
-- Service worker atualizado para invalidar o cache anterior e entregar as novas telas.
-- Quality gate que valida entrada, saída, Gestão de Acessos e cache PWA.
+A v0.7.0 migra o protótipo para uma arquitetura SaaS real:
 
-## Gestão de acessos — prévia funcional
+- Cloudflare Worker executado antes dos assets;
+- Google Identity Services com validação do ID token no servidor;
+- sessões revogáveis em cookie `Secure`, `HttpOnly` e `SameSite=Lax`;
+- Cloudflare D1 com migrations versionadas;
+- empresas reais (`tenants`) e vínculos de usuários;
+- convites, RBAC e auditoria no backend;
+- CSRF, nonce, validação de origem e rate limiting;
+- health check em `/api/health`;
+- idempotência nas operações críticas;
+- service worker sem cache de APIs ou conteúdo autenticado.
 
-A rota `/admin-access.html` permite testar:
+## Módulos já migrados para API + D1
 
-- pesquisa e filtros de usuários;
-- alteração de empresa, perfil e status;
-- criação de novos usuários;
-- indicadores de ativos, pendentes e suspensos;
-- histórico local de alterações;
-- restauração dos dados demonstrativos.
+1. **Clientes** — `/customers-saas.html`
+2. **Equipamentos** — `/equipment-saas.html`
+3. **Ordens de Serviço + histórico** — `/work-orders-saas.html`
+4. **Agenda e operação de campo** — `/field-service-saas.html`
+5. **Estoque transacional** — `/inventory-saas.html`
 
-As alterações dessa prévia ficam no `localStorage` do navegador e **ainda não controlam o acesso real ao ERP**. A integração robusta com Google, Cloudflare Worker e D1 está sendo desenvolvida separadamente.
+As telas antigas continuam no shell do protótipo enquanto cada domínio é migrado. Nos módulos acima, as telas `*-saas.html` usam o backend como fonte de verdade.
 
-## Perfis demonstrativos
+## Multiempresa e segurança
 
-- Administrador
-- Atendimento
-- Técnico
-- Estoque
-- Financeiro
-- Gestor
+Toda operação de negócio usa o `tenant_id` derivado da sessão autenticada. Os endpoints não aceitam `tenantId` do navegador como autoridade. FKs compostas e triggers reforçam no banco os vínculos Cliente → Equipamento → OS → Visita e Item → Local → Saldo/Movimento.
 
-## Recursos implementados
+Uma OS não pode usar equipamento de outro cliente. Uma OS com visita ativa não pode trocar de técnico nem ser encerrada. O técnico recebe filtros obrigatórios por `user_id` para próprias OS e visitas.
 
-- Dashboard operacional, financeiro e de estoque.
-- Área mobile do técnico com rota diária, checklist, medições, fotos e assinatura.
-- Ordens de serviço com fluxo de status, histórico e SLA.
-- Fila de despacho ordenada por criticidade e vencimento.
-- Clientes, equipamentos e contratos preventivos.
-- Orçamentos com aprovação e conversão em OS.
-- Vendas com baixa automática de estoque e lançamento financeiro.
-- Compras com recebimento, entrada no estoque e conta a pagar.
-- Consumo de materiais diretamente na OS.
-- Contexto multiempresa, notificações, auditoria, backup e restauração.
-- Portal demonstrativo do cliente.
-- PWA com atualização de cache e fallback offline.
+## Estoque transacional
 
-## Executar localmente
+O estoque não possui endpoint para “editar saldo”. Cada alteração é um registro em `stock_movements`, e triggers do D1 atualizam `stock_balances`.
+
+Controles implementados:
+
+- itens e locais separados por tenant;
+- SKU único por empresa;
+- estoque mínimo e custo de referência;
+- saldo por item/local;
+- livro de movimentações imutável;
+- bloqueio de saldo negativo no banco;
+- saldo inicial permitido uma única vez por item/local;
+- chave idempotente em cada movimentação;
+- consumo e devolução vinculados à OS;
+- devolução de OS limitada ao material líquido consumido;
+- técnico só consome/devolve material de OS atribuída a ele;
+- ajustes restritos a perfis autorizados.
+
+## Agenda e operação de campo
+
+`/field-service-saas.html` conecta a agenda à OS atribuída ao técnico e persiste checklist, medições e eventos. Fotos, anexos e assinatura digital ficam para a etapa R2.
+
+## Banco de dados
+
+- `0001_saas_foundation.sql`: identidade, tenants, sessões, clientes, auditoria e idempotência;
+- `0002_operational_core.sql`: equipamentos, ordens e histórico;
+- `0003_field_service.sql`: visitas, checklist, medições e histórico de campo;
+- `0004_field_service_integrity.sql`: consistência entre visita ativa e ciclo da OS;
+- `0005_inventory.sql`: locais, itens, saldos, ledger e triggers de saldo;
+- `0006_inventory_integrity.sql`: saldo inicial, consumo em OS e limite de devolução.
+
+## APIs
+
+Identidade: `/api/auth/*`, `/api/v1/me`, `/api/v1/tenants` e `/api/v1/tenant/switch`.
+
+Operação: `/api/v1/customers`, `/api/v1/equipment`, `/api/v1/work-orders`.
+
+Campo: `/api/v1/field/lookups`, `/api/v1/field/visits` e subrotas de status/checklist/medições.
+
+Estoque: `/api/v1/inventory/items`, `/api/v1/inventory/locations`, `/api/v1/inventory/balances` e `/api/v1/inventory/movements`.
+
+Administração: `/api/v1/admin/members`, `/api/v1/admin/invites` e `/api/v1/audit`.
+
+## Desenvolvimento
 
 ```bash
-npm install
-npm run serve
+npm ci
+npm run validate
+npm run dev
 ```
 
-Acesse `http://localhost:8080`. O primeiro acesso é direcionado para `/login.html`.
-
-## Validar o release
+Para criar e migrar o D1:
 
 ```bash
-npm run build:public
+npm run db:create
+npm run db:migrate:local
+npm run db:migrate
 ```
 
-O build:
+Secrets obrigatórios:
 
-1. valida os 27 fragmentos da aplicação e o SHA-256 original;
-2. extrai os assets do ERP;
-3. adiciona as telas de entrada, sessão e Gestão de Acessos;
-4. substitui o service worker pela versão `climaflux-v062-session-shell`;
-5. confirma que os 14 arquivos públicos obrigatórios foram gerados.
-
-SHA-256 do pacote-base:
-
-```text
-276dc082e046d202aeab91b807ee3bba9b20a403eba0187163f14e107b3750a5
+```bash
+npx wrangler secret put GOOGLE_CLIENT_ID
+npx wrangler secret put SESSION_SECRET
+npx wrangler secret put BOOTSTRAP_ADMIN_EMAILS
 ```
+
+Nunca versione nem envie `SESSION_SECRET` por chat, issue ou log.
+
+## Validação automatizada
+
+O quality gate executa `npm ci`, auditoria de runtime, syntax check, testes de autenticação/RBAC/tenant isolation/workflows/integridade de estoque, build verificado e validação dos assets protegidos.
 
 ## Publicação
 
-```bash
-npm run deploy
-```
+O deploy da v0.7.0 **não deve ser feito ainda** até:
 
-O Wrangler executa `scripts/build-public.mjs` e publica somente a pasta `public` no Cloudflare Workers Static Assets.
+- criar o D1 real e substituir `REPLACE_WITH_D1_DATABASE_ID`;
+- aplicar migrations 0001–0006;
+- configurar os secrets;
+- cadastrar a origem final no Google Cloud;
+- testar duas empresas em homologação;
+- confirmar isolamento de clientes, equipamentos, OS, visitas e estoque;
+- testar saldo negativo, idempotência e consumo/devolução de OS;
+- testar backup/restauração do D1;
+- validar URL e logs reais do Cloudflare.
 
-## Limitação de segurança
+## Ainda no armazenamento local
 
-A sessão da v0.6.2 é uma **simulação funcional no navegador**. Ela serve para validar a experiência de entrada e saída, mas não substitui autenticação no servidor. Dados operacionais e permissões ainda precisam migrar para APIs autenticadas com autorização por empresa antes de uso real em produção.
+- contratos;
+- orçamentos;
+- compras;
+- vendas;
+- financeiro;
+- despacho avançado e motor oficial de SLA;
+- fotos, anexos e assinaturas;
+- portal do cliente.
 
-## Arquitetura de produção proposta
+Próxima sequência: **compras/recebimento → vendas/baixa → financeiro → contratos/SLA → R2/anexos → portal real do cliente**.
 
-- Front-end React + TypeScript com PWA para técnicos.
-- Cloudflare Worker/API TypeScript para autenticação e serviços.
-- Google Identity Services com validação criptográfica do ID token.
-- D1/PostgreSQL com isolamento obrigatório por `tenant_id`.
-- Sessões revogáveis em cookies `Secure`, `HttpOnly` e `SameSite`.
-- Motor de SLA no servidor com calendário comercial, feriados e pausas auditáveis.
-- Object storage para fotos, laudos, anexos e assinaturas.
-- Auditoria imutável, observabilidade, backups e controles LGPD.
+Consulte `docs/PHASE_1_SAAS.md` para os critérios de ativação.

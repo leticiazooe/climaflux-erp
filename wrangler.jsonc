@@ -1,20 +1,41 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "climaflux-erp",
+  "main": "./worker/phase1-worker.js",
   "compatibility_date": "2026-08-06",
-  "observability": {
-    "enabled": true
-  },
+  "observability": { "enabled": true },
   "build": {
     "command": "node scripts/build-public.mjs",
-    "watch_dir": [
-      ".release-v060",
-      "preview",
-      "scripts"
-    ]
+    "watch_dir": [".release-v060", "auth", "worker", "migrations", "scripts"]
   },
   "assets": {
     "directory": "./public",
-    "not_found_handling": "single-page-application"
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "climaflux-saas",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "DEFAULT_TENANT_ID": "climaflux-default",
+    "DEFAULT_TENANT_NAME": "ClimaFlux",
+    "DEFAULT_TENANT_SLUG": "climaflux",
+    "DEFAULT_TIMEZONE": "America/Sao_Paulo",
+    "DEFAULT_CURRENCY": "BRL",
+    "DEFAULT_PLAN_CODE": "pilot",
+    "DEFAULT_APP_COMPANY_KEY": "",
+    "BOOTSTRAP_APP_USER_KEY": "",
+    "ALLOWED_GOOGLE_DOMAINS": "",
+    "AUTO_PROVISION_ROLE": "",
+    "ENABLE_TENANT_CREATION": "false",
+    "SESSION_TTL_SECONDS": "28800",
+    "SESSION_IDLE_SECONDS": "7200",
+    "INVITE_TTL_SECONDS": "604800"
   }
 }

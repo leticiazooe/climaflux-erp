@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Clientes SaaS · ClimaFlux ERP</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/auth.css">
+  <script src="/auth-client.js" defer></script>
+  <script src="/customers-saas.js" defer></script>
+</head>
+<body class="saas-page">
+  <header class="saas-header">
+    <div>
+      <strong>ClimaFlux ERP</strong>
+      <div id="tenantLabel">Clientes SaaS</div>
+    </div>
+    <nav>
+      <a href="/">ERP</a>
+      <a href="/admin-access.html">Acessos</a>
+    </nav>
+  </header>
+
+  <main class="saas-main">
+    <section class="saas-heading">
+      <div>
+        <h1>Clientes no backend</h1>
+        <p>Este é o primeiro módulo migrado para D1. Cada consulta é autenticada e filtrada pela empresa ativa da sessão.</p>
+      </div>
+      <button id="newCustomerButton" class="saas-button" type="button">Novo cliente</button>
+    </section>
+
+    <section class="saas-card saas-toolbar" aria-label="Filtros de clientes">
+      <label>
+        <span>Pesquisar</span>
+        <input id="searchInput" class="saas-input" type="search" placeholder="Nome, código, documento ou e-mail">
+      </label>
+      <label>
+        <span>Status</span>
+        <select id="statusFilter" class="saas-select">
+          <option value="">Todos</option>
+          <option value="active">Ativos</option>
+          <option value="inactive">Inativos</option>
+        </select>
+      </label>
+      <button id="refreshButton" class="saas-button secondary" type="button">Atualizar</button>
+    </section>
+
+    <div id="feedback" class="saas-feedback" aria-live="polite"></div>
+    <section id="customerGrid" class="saas-grid" aria-live="polite"></section>
+    <div class="saas-pagination">
+      <button id="previousButton" class="saas-button secondary" type="button">Anterior</button>
+      <span id="pageLabel">0 clientes</span>
+      <button id="nextButton" class="saas-button secondary" type="button">Próxima</button>
+    </div>
+  </main>
+
+  <dialog id="customerDialog" class="saas-dialog">
+    <form id="customerForm" class="saas-form">
+      <div class="saas-dialog-header">
+        <div>
+          <span class="auth-kicker">CADASTRO REAL</span>
+          <h2 id="dialogTitle">Novo cliente</h2>
+        </div>
+        <button id="closeDialogButton" class="saas-button secondary" type="button">Fechar</button>
+      </div>
+      <input id="customerId" name="id" type="hidden">
+      <div class="saas-form-grid">
+        <label>
+          <span>Nome</span>
+          <input id="customerName" class="saas-input" name="name" required maxlength="200">
+        </label>
+        <label>
+          <span>Tipo</span>
+          <select id="customerKind" class="saas-select" name="kind">
+            <option value="company">Empresa</option>
+            <option value="person">Pessoa</option>
+          </select>
+        </label>
+        <label>
+          <span>Documento</span>
+          <input id="customerDocument" class="saas-input" name="document" maxlength="40">
+        </label>
+        <label>
+          <span>Status</span>
+          <select id="customerStatus" class="saas-select" name="status">
+            <option value="active">Ativo</option>
+            <option value="inactive">Inativo</option>
+          </select>
+        </label>
+        <label>
+          <span>E-mail</span>
+          <input id="customerEmail" class="saas-input" name="email" type="email" maxlength="180">
+        </label>
+        <label>
+          <span>Telefone</span>
+          <input id="customerPhone" class="saas-input" name="phone" maxlength="40">
+        </label>
+      </div>
+      <label>
+        <span>Observações</span>
+        <textarea id="customerNotes" class="saas-textarea" name="notes" maxlength="2000"></textarea>
+      </label>
+      <div class="saas-dialog-actions">
+        <button id="cancelDialogButton" class="saas-button secondary" type="button">Cancelar</button>
+        <button id="saveCustomerButton" class="saas-button" type="submit">Salvar cliente</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

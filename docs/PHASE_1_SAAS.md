@@ -4,165 +4,141 @@
 
 Transformar o protótipo em uma base SaaS com identidade real, isolamento multiempresa, persistência no servidor e autorização no backend. A migração é incremental para preservar o ERP atual até cada domínio passar por testes.
 
-## Entregue
+## Plataforma entregue
 
-### Autenticação e sessão
+- Google Identity Services validado no Cloudflare Worker.
+- Sessões revogáveis no D1; somente hashes dos tokens são persistidos.
+- Cookie `__Host-climaflux_session` com `Secure`, `HttpOnly` e `SameSite=Lax`.
+- CSRF, nonce, origem, rate limiting e expiração absoluta/por inatividade.
+- `tenants`, `users`, `memberships`, convites e troca de empresa.
+- RBAC no servidor, proteção do último administrador e auditoria tenant-scoped.
+- Health check, observabilidade, migrations e idempotência.
+- Worker-first e service worker sem cache de APIs ou conteúdo autenticado.
 
-- Google Identity Services com validação RS256 no Cloudflare Worker.
-- Verificações de `aud`, `azp`, `iss`, `exp`, `iat`, nonce, e-mail verificado e domínio permitido.
-- Sessões revogáveis no D1; somente hash do token é armazenado.
-- Cookie `__Host-climaflux_session` com `Secure`, `HttpOnly`, `SameSite=Lax` e `Path=/`.
-- Expiração absoluta e por inatividade.
-- Logout revogável, CSRF, validação de origem e rate limiting.
-
-### Multiempresa e equipe
-
-- `tenants`, `users`, `memberships`, `tenant_invites` e troca de tenant ativo.
-- Convite por e-mail aceito no primeiro login Google correspondente.
-- Perfis por tenant.
-- Suspensão revoga sessões do vínculo.
-- Último administrador ativo é protegido.
-- Criação de tenant opcional e restrita a administrador.
-
-### Auditoria e operação
-
-- `audit_log` tenant-scoped.
-- `auth_events` para segurança.
-- IP persistido somente como hash.
-- health check e schema versionado.
-- idempotency keys com expiração.
-- observabilidade do Worker habilitada.
-
-## Domínios migrados para D1
+## Domínios migrados para API + D1
 
 ### 1. Clientes
 
-Tabela `customers` e rotas `/api/v1/customers`.
+`customers` e `/customers-saas.html`:
 
-- pesquisa e paginação;
+- pesquisa, paginação e validação;
 - código/documento únicos por tenant;
 - criação idempotente;
 - edição e exclusão lógica;
 - auditoria;
-- tenant obtido exclusivamente da sessão.
-
-Interface: `/customers-saas.html`.
+- `tenant_id` sempre derivado da sessão.
 
 ### 2. Equipamentos
 
-Migration `0002_operational_core.sql`, tabela `equipment`.
+`equipment` e `/equipment-saas.html`:
 
 - cliente proprietário obrigatório;
-- código único por tenant;
-- série única por tenant quando informada;
-- marca, modelo, patrimônio, BTU, refrigerante e localização;
-- status ativo, inativo ou baixado;
-- criação idempotente;
-- edição e exclusão lógica;
-- exclusão bloqueada se houver OS não terminal;
-- FK composta `(tenant_id, customer_id)`.
+- identificação técnica, patrimônio, capacidade, refrigerante e localização;
+- série/patrimônio ativos únicos por tenant;
+- FK composta cliente/tenant;
+- equipamento com histórico de OS não pode ser transferido silenciosamente para outro cliente.
 
-Interface: `/equipment-saas.html`.
+### 3. Ordens de Serviço
 
-### 3. Ordens de Serviço e histórico
+`work_orders`, `work_order_events` e `/work-orders-saas.html`:
 
-Tabelas `work_orders` e `work_order_events`.
-
-- cliente obrigatório;
-- equipamento opcional, mas obrigatoriamente do mesmo cliente/tenant;
-- técnico precisa possuir vínculo `tecnico` ativo no mesmo tenant;
-- prioridade, agenda e prazo de SLA;
-- criação idempotente;
-- edição tenant-scoped;
+- cliente, equipamento e técnico validados no tenant;
+- prioridade, agenda e SLA;
 - máquina de estados explícita;
-- resolução obrigatória na conclusão;
-- motivo obrigatório para pausa/cancelamento;
-- exclusão lógica apenas em `draft`/`cancelled`;
-- histórico de criação, edição, atribuição, status e exclusão;
-- histórico sem endpoint de alteração e com trigger contra `UPDATE`;
-- técnico lista somente OS atribuídas ao próprio `user_id`.
+- conclusão exige resolução;
+- pausa/cancelamento exigem motivo;
+- técnico vê somente próprias OS;
+- histórico imutável por triggers;
+- OS com visita ativa não troca de técnico nem encerra.
 
-Interface: `/work-orders-saas.html`.
+### 4. Agenda e operação de campo
 
-## Máquina de estados da OS
+`service_visits`, `visit_checklist_items`, `visit_measurements`, `service_visit_events` e `/field-service-saas.html`:
 
-```text
-draft       -> open | cancelled
-open        -> scheduled | in_progress | cancelled
-scheduled   -> in_progress | on_hold | cancelled
-in_progress -> on_hold | completed | cancelled
-on_hold     -> scheduled | in_progress | completed | cancelled
-completed   -> terminal
-cancelled   -> terminal
-```
+- visita nasce de OS já atribuída ao técnico;
+- técnico vê somente a própria agenda;
+- planejamento por atendimento/gestão;
+- fluxo `planned → en_route → on_site → completed` com cancelamento controlado;
+- chegada e saída registradas pelo fluxo;
+- checklist padrão persistido;
+- item não conforme exige observação;
+- visita não conclui com checklist pendente;
+- medições persistidas no D1;
+- eventos imutáveis.
 
-Técnicos podem transicionar somente as próprias ordens e não podem cancelar nem reagendar pelo endpoint de transição.
+Fotos, anexos e assinatura digital permanecem reservados para R2.
 
-## RBAC operacional
+### 5. Estoque transacional
 
-| Perfil | Clientes | Equipamentos | Ordens |
-|---|---|---|---|
-| admin | total | total | total |
-| gestor | leitura/escrita/exclusão | leitura/escrita/exclusão | leitura/escrita/atribuição/transição/exclusão |
-| atendimento | leitura/escrita | leitura/escrita | leitura/escrita/atribuição/transição |
-| tecnico | leitura | leitura | próprias OS + transição controlada |
-| estoque | leitura | leitura | leitura |
-| financeiro | leitura | leitura | leitura |
+`stock_locations`, `stock_items`, `stock_balances`, `stock_movements` e `/inventory-saas.html`:
 
-O Worker é a fonte de autoridade. A interface apenas adapta os controles visíveis.
+- locais físicos de estoque por tenant;
+- catálogo de materiais com SKU, unidade, mínimo e custo de referência;
+- saldos por item/local;
+- livro de movimentações somente acréscimo;
+- saldo nunca é editado diretamente pela API;
+- trigger aplica cada movimento ao saldo;
+- saída que produziria saldo negativo é recusada pelo D1;
+- saldo inicial só pode ser registrado uma vez por item/local;
+- consumo/devolução de OS exigem referência válida;
+- devolução de OS não pode exceder o material líquido consumido;
+- técnico só consome/devolve material das próprias OS;
+- movimentações recebem chave idempotente por tenant;
+- ajustes ficam restritos a perfis autorizados.
 
-## Arquitetura atual
+## Migrations
 
-```text
-Navegador
-  ├── Google Identity Services
-  └── telas SaaS
-        │
-        ▼
-worker/saas-worker.js
-  ├── APIs Equipamentos/OS
-  └── worker/index.js
-       ├── autenticação
-       ├── tenant/RBAC
-       ├── clientes/equipe/auditoria
-       └── static assets protegidos
-             │
-             ├── D1
-             └── Cloudflare Static Assets
-```
+- `0001_saas_foundation.sql`: identidade, tenants, sessões, clientes, auditoria e idempotência.
+- `0002_operational_core.sql`: equipamentos, ordens e histórico.
+- `0003_field_service.sql`: visitas, checklist, medições e histórico de campo.
+- `0004_field_service_integrity.sql`: consistência entre visita ativa e ciclo da OS.
+- `0005_inventory.sql`: itens, locais, saldos, ledger e triggers de saldo.
+- `0006_inventory_integrity.sql`: saldo inicial único, consumo de OS e limite de devolução.
 
-## APIs operacionais
+## APIs principais
 
-### Equipamentos
+### Identidade
 
-- `GET /api/v1/equipment`
-- `POST /api/v1/equipment`
-- `PATCH /api/v1/equipment/:id`
-- `DELETE /api/v1/equipment/:id`
+- `GET /api/health`
+- `GET /api/auth/config`
+- `POST /api/auth/google`
+- `GET /api/v1/me`
+- `POST /api/auth/logout`
+- `GET|POST /api/v1/tenants`
+- `POST /api/v1/tenant/switch`
 
-### Ordens
+### Operação
 
-- `GET /api/v1/work-orders`
-- `POST /api/v1/work-orders`
-- `PATCH /api/v1/work-orders/:id`
-- `DELETE /api/v1/work-orders/:id`
+- `GET|POST /api/v1/customers`
+- `PATCH|DELETE /api/v1/customers/:id`
+- `GET|POST /api/v1/equipment`
+- `PATCH|DELETE /api/v1/equipment/:id`
+- `GET|POST /api/v1/work-orders`
+- `PATCH|DELETE /api/v1/work-orders/:id`
 - `POST /api/v1/work-orders/:id/status`
 - `GET /api/v1/work-orders/:id/history`
-- `GET /api/v1/work-orders/lookups`
 
-## Validação atual
+### Campo
 
-O pipeline executa:
+- `GET /api/v1/field/lookups`
+- `GET|POST /api/v1/field/visits`
+- `GET|PATCH /api/v1/field/visits/:id`
+- `POST /api/v1/field/visits/:id/status`
+- `PUT /api/v1/field/visits/:id/checklist`
+- `POST /api/v1/field/visits/:id/measurements`
 
-- `npm ci` com lockfile;
-- auditoria de dependências de runtime;
-- syntax check de Workers e clientes;
-- testes de autenticação/RBAC;
-- testes da migration operacional;
-- testes da máquina de estados;
-- testes de tenant isolation;
-- build do release;
-- validação de 20 assets protegidos.
+### Estoque
+
+- `GET|POST /api/v1/inventory/items`
+- `PATCH /api/v1/inventory/items/:id`
+- `GET|POST /api/v1/inventory/locations`
+- `PATCH /api/v1/inventory/locations/:id`
+- `GET /api/v1/inventory/balances`
+- `GET|POST /api/v1/inventory/movements`
+
+## Segurança multiempresa
+
+A autoridade do tenant sempre vem da sessão. As APIs de negócio não aceitam `tenantId` do corpo ou query como fonte de autorização. FKs compostas, índices por tenant e triggers reforçam o isolamento também no banco.
 
 ## Ativação externa obrigatória
 
@@ -170,43 +146,41 @@ O pipeline executa:
 2. Autorizar localhost, homologação e domínio final.
 3. Criar D1 `climaflux-saas`.
 4. Substituir `REPLACE_WITH_D1_DATABASE_ID`.
-5. Configurar secrets diretamente no Cloudflare:
+5. Configurar diretamente no Cloudflare:
    - `GOOGLE_CLIENT_ID`;
    - `SESSION_SECRET`;
    - `BOOTSTRAP_ADMIN_EMAILS`.
-6. Aplicar migrations 0001 e 0002.
+6. Aplicar migrations 0001–0006.
 7. Implantar em homologação.
+8. Testar duas empresas, perfis, agenda e estoque antes do merge.
 
 Não enviar `SESSION_SECRET` por chat, commit, issue ou log.
 
 ## Critérios antes do merge/deploy
 
-- [ ] D1 de homologação criado.
-- [ ] ID real configurado.
-- [ ] migrations 0001 e 0002 aplicadas.
-- [ ] secrets configurados.
-- [ ] origem Google autorizada.
-- [ ] primeiro administrador autenticado.
-- [ ] convite de segundo usuário testado.
-- [ ] duas empresas testadas.
-- [ ] cliente criado em cada empresa.
-- [ ] equipamento criado em cada empresa.
-- [ ] OS criada em cada empresa.
-- [ ] tentativa de referência cruzada cliente/equipamento recusada.
-- [ ] técnico enxerga somente sua OS.
-- [ ] histórico de transições validado.
+- [ ] D1 de homologação criado e ID real configurado.
+- [ ] migrations 0001–0006 aplicadas remotamente.
+- [ ] secrets configurados e origem Google autorizada.
+- [ ] primeiro administrador e convite de segundo usuário testados.
+- [ ] duas empresas validadas sem vazamento cruzado.
+- [ ] cliente, equipamento e OS criados em cada empresa.
+- [ ] técnico enxerga somente suas OS e visitas.
+- [ ] checklist, medições e transições testados.
+- [ ] item/local de estoque criados em cada empresa.
+- [ ] entrada, saída, consumo e devolução de OS testados.
+- [ ] tentativa de saldo negativo recusada.
+- [ ] tentativa de devolução acima do consumido recusada.
+- [ ] idempotência de movimentação testada.
 - [ ] suspensão e revogação de sessão testadas.
 - [ ] backup/restauração do D1 testado.
-- [ ] URL de homologação e logs do Cloudflare validados.
+- [ ] URL e logs do Cloudflare de homologação validados.
 
 ## Ainda local no protótipo
 
-- agenda e operação de campo detalhada;
 - contratos;
 - orçamentos;
-- vendas;
-- estoque;
 - compras;
+- vendas;
 - financeiro;
 - despacho avançado e motor oficial de SLA;
 - fotos, anexos e assinaturas;
@@ -214,12 +188,11 @@ Não enviar `SESSION_SECRET` por chat, commit, issue ou log.
 
 ## Próxima ordem de migração
 
-1. Técnicos, agenda e operação de campo.
-2. Estoque e movimentações transacionais.
-3. Compras e vendas.
-4. Financeiro.
-5. Contratos e motor oficial de SLA.
-6. R2 para fotos, anexos e assinaturas.
-7. Portal real do cliente.
+1. Compras e recebimento integrado ao estoque.
+2. Vendas e baixa integrada ao estoque.
+3. Financeiro.
+4. Contratos e motor oficial de SLA.
+5. R2 para fotos, anexos e assinaturas.
+6. Portal real do cliente.
 
-D1 continua adequado para o beta controlado. Antes da expansão, medir concorrência e volume transacional para decidir se o domínio operacional permanece em D1 ou migra para PostgreSQL.
+D1 continua sendo usado no beta controlado. Antes de ampliar a operação, medir concorrência, volume transacional e relatórios para decidir se algum domínio deve migrar para PostgreSQL.

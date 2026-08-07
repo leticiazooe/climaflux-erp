@@ -5,7 +5,7 @@ import { dirname, resolve, sep } from 'node:path';
 
 const ROOT = resolve(process.cwd());
 const RELEASE_DIR = resolve(ROOT, '.release-v060');
-const PREVIEW_DIR = resolve(ROOT, 'preview');
+const AUTH_DIR = resolve(ROOT, 'auth');
 const OUTPUT_DIR = resolve(ROOT, 'public');
 const EXPECTED_ARCHIVE_SHA256 = '276dc082e046d202aeab91b807ee3bba9b20a403eba0187163f14e107b3750a5';
 const EXPECTED_PARTS = [
@@ -37,16 +37,27 @@ const EXPECTED_PARTS = [
   ['part-23.b64', '7fade86fb25b776606eb115953ed6c64baceda72'],
   ['part-24.b64', 'ae8a94af4273ff4741f0fe1f6bb3cc40cecfd19a'],
 ];
-const RELEASE_ASSETS = ['app.js', 'domain.js', 'icon.svg', 'index.html', 'manifest.webmanifest', 'styles.css', 'sw.js'];
-const PREVIEW_ASSETS = [
-  ['admin-access.html', 'admin-access.html'],
-  ['admin-access.css', 'admin-access.css'],
-  ['admin-access.js', 'admin-access.js'],
+
+const RELEASE_ASSETS = [
+  'app.js',
+  'domain.js',
+  'icon.svg',
+  'index.html',
+  'manifest.webmanifest',
+  'styles.css',
+  'sw.js',
+];
+
+const AUTH_ASSETS = [
+  ['auth.css', 'auth.css'],
   ['login.html', 'login.html'],
-  ['login-preview.js', 'login-preview.js'],
-  ['session-preview.css', 'session-preview.css'],
-  ['session-preview.js', 'session-preview.js'],
-  ['session-sw.js', 'sw.js'],
+  ['login.js', 'login.js'],
+  ['auth-client.js', 'auth-client.js'],
+  ['admin-access.html', 'admin-access.html'],
+  ['admin-access.js', 'admin-access.js'],
+  ['customers-saas.html', 'customers-saas.html'],
+  ['customers-saas.js', 'customers-saas.js'],
+  ['secure-sw.js', 'sw.js'],
 ];
 
 function gitBlobSha1(buffer) {
@@ -59,7 +70,9 @@ async function rebuildArchive() {
   for (const [name, expectedSha] of EXPECTED_PARTS) {
     const raw = await readFile(resolve(RELEASE_DIR, name));
     const actualSha = gitBlobSha1(raw);
-    if (actualSha !== expectedSha) throw new Error(`Parte corrompida: ${name}. Esperado ${expectedSha}, recebido ${actualSha}.`);
+    if (actualSha !== expectedSha) {
+      throw new Error(`Parte corrompida: ${name}. Esperado ${expectedSha}, recebido ${actualSha}.`);
+    }
     encoded.push(raw.toString('utf8'));
   }
   const archive = Buffer.from(encoded.join('').replace(/\s/g, ''), 'base64');
@@ -80,6 +93,7 @@ async function extractTar(tarBuffer) {
   await mkdir(OUTPUT_DIR, { recursive: true });
   let offset = 0;
   const extracted = [];
+
   while (offset + 512 <= tarBuffer.length) {
     const header = tarBuffer.subarray(offset, offset + 512);
     if (header.every((byte) => byte === 0)) break;
@@ -90,66 +104,90 @@ async function extractTar(tarBuffer) {
     const type = String.fromCharCode(header[156] || 48);
     const dataStart = offset + 512;
     const dataEnd = dataStart + size;
+
     if (name && type !== '5') {
       if (!RELEASE_ASSETS.includes(name)) throw new Error(`Arquivo inesperado no release público: ${name}`);
       const target = resolve(OUTPUT_DIR, name);
-      if (!target.startsWith(`${OUTPUT_DIR}${sep}`) && target !== OUTPUT_DIR) throw new Error(`Caminho inseguro no release: ${name}`);
+      if (!target.startsWith(`${OUTPUT_DIR}${sep}`) && target !== OUTPUT_DIR) {
+        throw new Error(`Caminho inseguro no release: ${name}`);
+      }
       await mkdir(dirname(target), { recursive: true });
       await writeFile(target, tarBuffer.subarray(dataStart, dataEnd));
       extracted.push(name);
     }
     offset = dataStart + Math.ceil(size / 512) * 512;
   }
+
   const missing = RELEASE_ASSETS.filter((asset) => !extracted.includes(asset));
   if (missing.length) throw new Error(`Assets obrigatórios ausentes: ${missing.join(', ')}.`);
-  if (extracted.length !== RELEASE_ASSETS.length) throw new Error(`Quantidade inesperada de assets do ERP: ${extracted.length}.`);
+  if (extracted.length !== RELEASE_ASSETS.length) {
+    throw new Error(`Quantidade inesperada de assets do ERP: ${extracted.length}.`);
+  }
 }
 
-async function installPreviewAssets() {
-  for (const [source, target] of PREVIEW_ASSETS) await copyFile(resolve(PREVIEW_DIR, source), resolve(OUTPUT_DIR, target));
+async function installAuthenticationAssets() {
+  for (const [source, target] of AUTH_ASSETS) {
+    await copyFile(resolve(AUTH_DIR, source), resolve(OUTPUT_DIR, target));
+  }
+
   const indexPath = resolve(OUTPUT_DIR, 'index.html');
   let html = await readFile(indexPath, 'utf8');
-  if (!html.includes('/session-preview.css')) html = html.replace('</head>', '  <link rel="stylesheet" href="/session-preview.css">\n</head>');
-  if (!html.includes('/session-preview.js')) html = html.replace('</body>', '  <script src="/session-preview.js" defer></script>\n</body>');
+  if (!html.includes('name="climaflux-version"')) {
+    html = html.replace('</head>', '  <meta name="climaflux-version" content="0.7.0">\n</head>');
+  }
+  if (!html.includes('/auth.css')) {
+    html = html.replace('</head>', '  <link rel="stylesheet" href="/auth.css">\n</head>');
+  }
+  if (!html.includes('/auth-client.js')) {
+    html = html.replace('</body>', '  <script src="/auth-client.js" defer></script>\n</body>');
+  }
   await writeFile(indexPath, html);
 }
 
 async function validatePublicOutput() {
-  const required = [...new Set([...RELEASE_ASSETS, ...PREVIEW_ASSETS.map(([, target]) => target)])];
+  const required = [...new Set([...RELEASE_ASSETS, ...AUTH_ASSETS.map(([, target]) => target)])];
   for (const asset of required) {
     const content = await readFile(resolve(OUTPUT_DIR, asset));
     if (!content.length) throw new Error(`Asset público vazio: ${asset}.`);
   }
+
   const index = await readFile(resolve(OUTPUT_DIR, 'index.html'), 'utf8');
-  if (!index.includes('/session-preview.css') || !index.includes('/session-preview.js')) {
-    throw new Error('O ERP não recebeu os controles de sessão demonstrativa.');
+  if (!index.includes('/auth.css') || !index.includes('/auth-client.js')) {
+    throw new Error('O ERP não recebeu a proteção de autenticação SaaS.');
   }
-  const admin = await readFile(resolve(OUTPUT_DIR, 'admin-access.html'), 'utf8');
-  if (!admin.includes('logoutButton') || !admin.includes('/session-preview.js')) {
-    throw new Error('A Gestão de Acessos não recebeu o botão de saída.');
+  if (!index.includes('climaflux-version') || !index.includes('0.7.0')) {
+    throw new Error('A versão SaaS não foi identificada no shell.');
   }
+
   const login = await readFile(resolve(OUTPUT_DIR, 'login.html'), 'utf8');
-  if (!login.includes('enterDemoButton') || !login.includes('/login-preview.js')) {
-    throw new Error('A tela de entrada demonstrativa está incompleta.');
+  if (!login.includes('accounts.google.com/gsi/client') || !login.includes('/login.js')) {
+    throw new Error('A tela Google está incompleta.');
   }
-  const sessionScript = await readFile(resolve(OUTPUT_DIR, 'session-preview.js'), 'utf8');
-  if (!sessionScript.includes('climaflux-preview-session-v1') || !sessionScript.includes('Sair do sistema')) {
-    throw new Error('O fluxo demonstrativo de sessão e saída está incompleto.');
+
+  const admin = await readFile(resolve(OUTPUT_DIR, 'admin-access.html'), 'utf8');
+  if (!admin.includes('/auth-client.js') || !admin.includes('/admin-access.js')) {
+    throw new Error('A Gestão de Acessos SaaS está incompleta.');
   }
+
+  const customers = await readFile(resolve(OUTPUT_DIR, 'customers-saas.html'), 'utf8');
+  if (!customers.includes('/customers-saas.js') || !customers.includes('Clientes no backend')) {
+    throw new Error('O módulo de Clientes SaaS está incompleto.');
+  }
+
   const serviceWorker = await readFile(resolve(OUTPUT_DIR, 'sw.js'), 'utf8');
-  if (!serviceWorker.includes('climaflux-v062-session-shell') || !serviceWorker.includes('/login.html')) {
-    throw new Error('O service worker não invalida o cache anterior da sessão.');
+  if (!serviceWorker.includes('climaflux-saas-public-v070') || !serviceWorker.includes("pathname.startsWith('/api/')")) {
+    throw new Error('O service worker não protege as respostas autenticadas.');
   }
   return required.length;
 }
 
 try {
-  console.log('Preparando ClimaFlux ERP v0.6.2...');
+  console.log('Preparando ClimaFlux ERP v0.7.0 — Fundação SaaS...');
   const archive = await rebuildArchive();
   await extractTar(gunzipSync(archive));
-  await installPreviewAssets();
+  await installAuthenticationAssets();
   const count = await validatePublicOutput();
-  console.log(`ClimaFlux ERP v0.6.2 validado: ${count} arquivo(s) públicos em ${OUTPUT_DIR}.`);
+  console.log(`ClimaFlux ERP v0.7.0 validado: ${count} arquivo(s) públicos protegidos em ${OUTPUT_DIR}.`);
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;

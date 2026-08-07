@@ -27,29 +27,36 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
       - name: Validate source, tests and release
         run: npm run validate
-      - name: Verify v0.7.0 SaaS operational foundation
+      - name: Verify v0.7.0 SaaS Phase 1
         shell: bash
         run: |
           set -euo pipefail
           test -s package-lock.json
-          for file in index.html styles.css app.js domain.js manifest.webmanifest sw.js icon.svg auth.css operations.css login.html login.js auth-client.js admin-access.html admin-access.js customers-saas.html customers-saas.js equipment-saas.html equipment-saas.js work-orders-saas.html work-orders-saas.js; do test -s "public/$file"; done
-          for file in index.js auth.js security.js policy.js operations.js saas-worker.js; do test -s "worker/$file"; done
-          test -s migrations/0001_saas_foundation.sql
-          test -s migrations/0002_operational_core.sql
+          for file in index.html styles.css app.js domain.js manifest.webmanifest sw.js icon.svg auth.css operations.css login.html login.js auth-client.js admin-access.html admin-access.js customers-saas.html customers-saas.js equipment-saas.html equipment-saas.js work-orders-saas.html work-orders-saas.js field-service-saas.html field-service-saas.js; do test -s "public/$file"; done
+          for file in index.js auth.js security.js policy.js operations.js saas-worker.js field-service.js phase1-worker.js; do test -s "worker/$file"; done
+          for file in 0001_saas_foundation.sql 0002_operational_core.sql 0003_field_service.sql 0004_field_service_integrity.sql; do test -s "migrations/$file"; done
           grep -q '0.7.0' public/index.html
           grep -q 'accounts.google.com/gsi/client' public/login.html
           grep -q '/api/v1/customers' public/auth-client.js
           grep -q '/api/v1/equipment' public/auth-client.js
           grep -q '/api/v1/work-orders' public/auth-client.js
+          grep -q '/api/v1/field/visits' public/auth-client.js
           grep -q 'TRILHA IMUTÁVEL' public/work-orders-saas.html
+          grep -q 'Checklist' public/field-service-saas.html
+          grep -q 'Medições' public/field-service-saas.html
           grep -q 'climaflux-saas-public-v070' public/sw.js
-          grep -q 'worker/saas-worker.js' wrangler.jsonc
+          grep -q 'worker/phase1-worker.js' wrangler.jsonc
           grep -q 'run_worker_first' wrangler.jsonc
           grep -q 'CREATE TABLE IF NOT EXISTS equipment' migrations/0002_operational_core.sql
           grep -q 'CREATE TABLE IF NOT EXISTS work_orders' migrations/0002_operational_core.sql
-          grep -q 'CREATE TABLE IF NOT EXISTS work_order_events' migrations/0002_operational_core.sql
-          grep -q 'WORK_ORDER_EQUIPMENT_CUSTOMER_MISMATCH' migrations/0002_operational_core.sql
+          grep -q 'CREATE TABLE IF NOT EXISTS service_visits' migrations/0003_field_service.sql
+          grep -q 'CREATE TABLE IF NOT EXISTS visit_checklist_items' migrations/0003_field_service.sql
+          grep -q 'CREATE TABLE IF NOT EXISTS visit_measurements' migrations/0003_field_service.sql
+          grep -q 'FIELD_EVENT_IMMUTABLE' migrations/0003_field_service.sql
+          grep -q 'WORK_ORDER_ACTIVE_VISIT_EXISTS' migrations/0004_field_service_integrity.sql
           grep -q "session.activeMembership.role === 'tecnico'" worker/operations.js
+          grep -q "session.activeMembership.role === 'tecnico'" worker/field-service.js
+          grep -q 'body.workOrders = .*technician_user_id === session.user_id' worker/phase1-worker.js
           grep -q 'Idempotency-Key' auth/auth-client.js
           grep -q 'constantTimeEqual(csrfCookie, csrfBody)' worker/index.js
-          echo 'ClimaFlux ERP v0.7.0 operational SaaS foundation validated.'
+          echo 'ClimaFlux ERP v0.7.0 Phase 1 SaaS foundation validated.'

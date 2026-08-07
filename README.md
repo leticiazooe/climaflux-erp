@@ -16,143 +16,68 @@ A v0.7.0 migra o protótipo para uma arquitetura SaaS real:
 - convites, RBAC e auditoria no backend;
 - CSRF, nonce, validação de origem e rate limiting;
 - health check em `/api/health`;
-- idempotência nas criações operacionais;
+- idempotência nas operações críticas;
 - service worker sem cache de APIs ou conteúdo autenticado.
 
-### Módulos já migrados para API + D1
+## Módulos já migrados para API + D1
 
 1. **Clientes** — `/customers-saas.html`
 2. **Equipamentos** — `/equipment-saas.html`
 3. **Ordens de Serviço + histórico** — `/work-orders-saas.html`
 4. **Agenda e operação de campo** — `/field-service-saas.html`
+5. **Estoque transacional** — `/inventory-saas.html`
 
-As telas antigas continuam no shell do protótipo enquanto cada domínio é migrado. Para os domínios acima, as telas `*-saas.html` usam o backend como fonte de verdade.
+As telas antigas continuam no shell do protótipo enquanto cada domínio é migrado. Nos módulos acima, as telas `*-saas.html` usam o backend como fonte de verdade.
 
 ## Multiempresa e segurança
 
-Toda operação de negócio usa o `tenant_id` derivado da sessão autenticada. Os endpoints não aceitam `tenantId` do navegador como autoridade.
+Toda operação de negócio usa o `tenant_id` derivado da sessão autenticada. Os endpoints não aceitam `tenantId` do navegador como autoridade. FKs compostas e triggers reforçam no banco os vínculos Cliente → Equipamento → OS → Visita e Item → Local → Saldo/Movimento.
 
-O banco reforça os relacionamentos por tenant:
+Uma OS não pode usar equipamento de outro cliente. Uma OS com visita ativa não pode trocar de técnico nem ser encerrada. O técnico recebe filtros obrigatórios por `user_id` para próprias OS e visitas.
 
-- Cliente → Equipamento;
-- Cliente → Ordem de Serviço;
-- Equipamento → Ordem de Serviço;
-- Ordem de Serviço → Histórico;
-- Ordem de Serviço → Visita técnica;
-- Visita → Checklist, medições e eventos.
+## Estoque transacional
 
-Uma OS não pode usar equipamento de outro cliente. Equipamentos com histórico de OS não podem ser transferidos silenciosamente para outro cliente. Uma OS com visita ativa não pode trocar de técnico nem ser encerrada até a visita ser concluída ou cancelada.
-
-## Perfis operacionais
-
-- `admin`: acesso total;
-- `gestor`: gestão completa da operação e auditoria;
-- `atendimento`: clientes, equipamentos, ordens, atribuição e planejamento das visitas;
-- `tecnico`: leitura necessária, próprias OS, própria agenda, status, checklist e medições;
-- `estoque`: leitura de clientes/equipamentos/ordens;
-- `financeiro`: leitura de clientes/equipamentos/ordens.
-
-O técnico recebe filtros obrigatórios por `user_id` no servidor para OS e visitas. Os endpoints auxiliares também removem dados de outros técnicos antes da resposta.
-
-## Equipamentos SaaS
-
-`/equipment-saas.html` oferece vínculo com cliente, identificação técnica, localização, status, pesquisa, criação idempotente, edição, exclusão lógica e auditoria. Série e patrimônio ativos são únicos por tenant.
-
-## Ordens de Serviço SaaS
-
-`/work-orders-saas.html` oferece cliente/equipamento vinculados, técnico ativo, prioridade, agenda, prazo de SLA, fluxo de status controlado, resolução obrigatória na conclusão, motivo de pausa/cancelamento e histórico imutável.
-
-Fluxo permitido:
-
-```text
-draft       -> open | cancelled
-open        -> scheduled | in_progress | cancelled
-scheduled   -> in_progress | on_hold | cancelled
-in_progress -> on_hold | completed | cancelled
-on_hold     -> scheduled | in_progress | completed | cancelled
-completed   -> terminal
-cancelled   -> terminal
-```
-
-## Agenda e operação de campo
-
-`/field-service-saas.html` conecta a agenda diretamente à OS atribuída ao técnico.
-
-Fluxo da visita:
-
-```text
-planned  -> en_route | on_site | cancelled
-en_route -> on_site | cancelled
-on_site  -> completed | cancelled
-completed/cancelled -> terminal
-```
+O estoque não possui endpoint para “editar saldo”. Cada alteração é um registro em `stock_movements`, e triggers do D1 atualizam `stock_balances`.
 
 Controles implementados:
 
-- visita somente para OS aberta e já atribuída a um técnico ativo;
-- técnico vê apenas a própria agenda;
-- atendimento/gestão planejam e alteram horário;
-- chegada e saída registradas pelo fluxo de status;
-- checklist padrão persistido no D1;
-- item `not_ok` exige observação;
-- visita não conclui com checklist pendente;
-- medições técnicas persistidas no D1;
-- histórico da visita protegido contra `UPDATE` e `DELETE`;
-- fotos, anexos e assinatura ficam para a etapa R2.
+- itens e locais separados por tenant;
+- SKU único por empresa;
+- estoque mínimo e custo de referência;
+- saldo por item/local;
+- livro de movimentações imutável;
+- bloqueio de saldo negativo no banco;
+- saldo inicial permitido uma única vez por item/local;
+- chave idempotente em cada movimentação;
+- consumo e devolução vinculados à OS;
+- devolução de OS limitada ao material líquido consumido;
+- técnico só consome/devolve material de OS atribuída a ele;
+- ajustes restritos a perfis autorizados.
+
+## Agenda e operação de campo
+
+`/field-service-saas.html` conecta a agenda à OS atribuída ao técnico e persiste checklist, medições e eventos. Fotos, anexos e assinatura digital ficam para a etapa R2.
 
 ## Banco de dados
 
 - `0001_saas_foundation.sql`: identidade, tenants, sessões, clientes, auditoria e idempotência;
 - `0002_operational_core.sql`: equipamentos, ordens e histórico;
 - `0003_field_service.sql`: visitas, checklist, medições e histórico de campo;
-- `0004_field_service_integrity.sql`: bloqueio de encerramento de OS com visita ativa.
+- `0004_field_service_integrity.sql`: consistência entre visita ativa e ciclo da OS;
+- `0005_inventory.sql`: locais, itens, saldos, ledger e triggers de saldo;
+- `0006_inventory_integrity.sql`: saldo inicial, consumo em OS e limite de devolução.
 
-## API
+## APIs
 
-### Identidade e tenant
+Identidade: `/api/auth/*`, `/api/v1/me`, `/api/v1/tenants` e `/api/v1/tenant/switch`.
 
-- `GET /api/health`
-- `GET /api/auth/config`
-- `POST /api/auth/google`
-- `GET /api/v1/me`
-- `POST /api/auth/logout`
-- `GET|POST /api/v1/tenants`
-- `POST /api/v1/tenant/switch`
+Operação: `/api/v1/customers`, `/api/v1/equipment`, `/api/v1/work-orders`.
 
-### Clientes
+Campo: `/api/v1/field/lookups`, `/api/v1/field/visits` e subrotas de status/checklist/medições.
 
-- `GET|POST /api/v1/customers`
-- `PATCH|DELETE /api/v1/customers/:id`
+Estoque: `/api/v1/inventory/items`, `/api/v1/inventory/locations`, `/api/v1/inventory/balances` e `/api/v1/inventory/movements`.
 
-### Equipamentos
-
-- `GET|POST /api/v1/equipment`
-- `PATCH|DELETE /api/v1/equipment/:id`
-
-### Ordens de Serviço
-
-- `GET|POST /api/v1/work-orders`
-- `PATCH|DELETE /api/v1/work-orders/:id`
-- `POST /api/v1/work-orders/:id/status`
-- `GET /api/v1/work-orders/:id/history`
-- `GET /api/v1/work-orders/lookups`
-
-### Operação de campo
-
-- `GET /api/v1/field/lookups`
-- `GET|POST /api/v1/field/visits`
-- `GET|PATCH /api/v1/field/visits/:id`
-- `POST /api/v1/field/visits/:id/status`
-- `PUT /api/v1/field/visits/:id/checklist`
-- `POST /api/v1/field/visits/:id/measurements`
-
-### Administração
-
-- `GET /api/v1/admin/members`
-- `POST /api/v1/admin/invites`
-- `PATCH /api/v1/admin/members/:userId`
-- `DELETE /api/v1/admin/invites/:inviteId`
-- `GET /api/v1/audit`
+Administração: `/api/v1/admin/members`, `/api/v1/admin/invites` e `/api/v1/audit`.
 
 ## Desenvolvimento
 
@@ -182,32 +107,33 @@ Nunca versione nem envie `SESSION_SECRET` por chat, issue ou log.
 
 ## Validação automatizada
 
-O quality gate executa `npm ci`, auditoria de runtime, syntax check, testes de autenticação/RBAC/tenant isolation/workflows, build verificado e validação de **22 assets protegidos**.
+O quality gate executa `npm ci`, auditoria de runtime, syntax check, testes de autenticação/RBAC/tenant isolation/workflows/integridade de estoque, build verificado e validação dos assets protegidos.
 
 ## Publicação
 
 O deploy da v0.7.0 **não deve ser feito ainda** até:
 
 - criar o D1 real e substituir `REPLACE_WITH_D1_DATABASE_ID`;
-- aplicar migrations 0001–0004;
+- aplicar migrations 0001–0006;
 - configurar os secrets;
 - cadastrar a origem final no Google Cloud;
 - testar duas empresas em homologação;
-- confirmar isolamento de clientes, equipamentos, OS e visitas;
-- testar backup/restauração do D1.
+- confirmar isolamento de clientes, equipamentos, OS, visitas e estoque;
+- testar saldo negativo, idempotência e consumo/devolução de OS;
+- testar backup/restauração do D1;
+- validar URL e logs reais do Cloudflare.
 
 ## Ainda no armazenamento local
 
 - contratos;
 - orçamentos;
-- vendas;
-- estoque e movimentações;
 - compras;
+- vendas;
 - financeiro;
 - despacho avançado e motor oficial de SLA;
 - fotos, anexos e assinaturas;
 - portal do cliente.
 
-Próxima sequência: **estoque transacional → compras/vendas → financeiro → contratos/SLA → R2/anexos → portal real do cliente**.
+Próxima sequência: **compras/recebimento → vendas/baixa → financeiro → contratos/SLA → R2/anexos → portal real do cliente**.
 
 Consulte `docs/PHASE_1_SAAS.md` para os critérios de ativação.

@@ -7,23 +7,37 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   validate-saas-foundation:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
-      - name: Checkout
+      - name: Checkout feature branch
         uses: actions/checkout@v4
+        with:
+          ref: agent/phase1-saas-foundation
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 24
 
-      - name: Install dependencies
+      - name: Install dependencies and create lockfile
         run: npm install --ignore-scripts
+
+      - name: Commit reproducible lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git diff --cached --quiet || git commit -m "chore: add reproducible dependency lockfile"
+          git push origin HEAD:agent/phase1-saas-foundation
+
+      - name: Audit runtime dependencies
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Validate source, tests and release
         run: npm run validate
@@ -32,6 +46,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          test -s package-lock.json
           test -s public/index.html
           test -s public/styles.css
           test -s public/app.js

@@ -21,15 +21,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
 
       - name: Install dependencies
         run: npm install --ignore-scripts
 
+      - name: Check access preview JavaScript
+        run: node --check preview/admin-access.js
+
       - name: Rebuild verified public release
         run: npm run build:public
 
-      - name: Verify required assets and v0.6.0 features
+      - name: Verify required assets and v0.6.1 features
         shell: bash
         run: |
           set -euo pipefail
@@ -40,9 +42,15 @@ jobs:
           test -s public/manifest.webmanifest
           test -s public/sw.js
           test -s public/icon.svg
+          test -s public/admin-access.html
+          test -s public/admin-access.css
+          test -s public/admin-access.js
           grep -q 'ClimaFlux' public/index.html
           grep -q '0.6.0' public/manifest.webmanifest
           grep -q 'Despacho e SLA' public/app.js
           grep -q 'Portal do cliente' public/app.js
           grep -q 'sla' public/domain.js
-          echo 'ClimaFlux ERP v0.6.0 release validated.'
+          grep -q 'Usuários e permissões' public/admin-access.html
+          grep -q 'climaflux-access-preview-v1' public/admin-access.js
+          grep -q 'Prévia funcional' public/admin-access.html
+          echo 'ClimaFlux ERP v0.6.1 release and access preview validated.'

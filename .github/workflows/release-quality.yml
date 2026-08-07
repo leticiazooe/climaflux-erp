@@ -30,7 +30,7 @@ jobs:
           node scripts/phase1-hardening-autofix.mjs
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add worker/index.js auth/admin-access.js auth/customers-saas.html auth/customers-saas.js .github/workflows/release-quality.yml
+          git add worker/index.js auth/admin-access.js auth/customers-saas.html auth/customers-saas.js
           git diff --cached --quiet || git commit -m "fix: harden Phase 1 authentication and permissions"
           git push origin HEAD:agent/phase1-saas-foundation
 
@@ -67,7 +67,7 @@ jobs:
           grep -q 'climaflux-version' public/index.html
           grep -q '0.7.0' public/index.html
           grep -q 'accounts.google.com/gsi/client' public/login.html
-          grep -q '/api/v1/customers' public/customers-saas.js
+          grep -q '/api/v1/customers' public/auth-client.js
           grep -q '/api/v1/admin/invites' public/admin-access.js
           grep -q 'climaflux-saas-public-v070' public/sw.js
           grep -q 'run_worker_first' wrangler.jsonc

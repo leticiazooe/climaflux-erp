@@ -7,70 +7,17 @@
   <title>Equipamentos SaaS · ClimaFlux ERP</title>
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/auth.css">
+  <link rel="stylesheet" href="/operations.css">
   <script src="/auth-client.js" defer></script>
   <script src="/equipment-saas.js" defer></script>
 </head>
 <body class="saas-page">
-  <header class="saas-header">
-    <div><strong>ClimaFlux ERP</strong><div id="tenantLabel">Equipamentos</div></div>
-    <nav>
-      <a href="/">ERP</a>
-      <a href="/customers-saas.html">Clientes</a>
-      <a href="/work-orders-saas.html">Ordens</a>
-      <a id="accessNavLink" href="/admin-access.html">Acessos</a>
-    </nav>
-  </header>
-
+  <header class="saas-header"><div><strong>ClimaFlux ERP</strong><div id="tenantLabel">Equipamentos</div></div><nav><a href="/">ERP</a><a href="/customers-saas.html">Clientes</a><a href="/work-orders-saas.html">Ordens</a><a id="accessNavLink" href="/admin-access.html">Acessos</a></nav></header>
   <main class="saas-main">
-    <section class="saas-heading">
-      <div>
-        <h1>Equipamentos</h1>
-        <p>Ativos técnicos vinculados aos clientes da empresa ativa. O vínculo cliente → equipamento é validado no banco e no servidor.</p>
-      </div>
-      <button id="newEquipmentButton" class="saas-button" type="button">Novo equipamento</button>
-    </section>
-
-    <section class="saas-card saas-toolbar saas-toolbar-wide" aria-label="Filtros de equipamentos">
-      <label><span>Pesquisar</span><input id="searchInput" class="saas-input" type="search" placeholder="Código, marca, modelo, série, patrimônio ou cliente"></label>
-      <label><span>Cliente</span><select id="customerFilter" class="saas-select"><option value="">Todos</option></select></label>
-      <label><span>Status</span><select id="statusFilter" class="saas-select"><option value="">Todos</option><option value="active">Ativos</option><option value="inactive">Inativos</option><option value="retired">Baixados</option></select></label>
-      <button id="refreshButton" class="saas-button secondary" type="button">Atualizar</button>
-    </section>
-
-    <div id="feedback" class="saas-feedback" aria-live="polite"></div>
-    <section id="equipmentGrid" class="saas-grid" aria-live="polite"></section>
-    <div class="saas-pagination">
-      <button id="previousButton" class="saas-button secondary" type="button">Anterior</button>
-      <span id="pageLabel">0 equipamentos</span>
-      <button id="nextButton" class="saas-button secondary" type="button">Próxima</button>
-    </div>
+    <section class="saas-heading"><div><h1>Equipamentos</h1><p>Ativos técnicos vinculados aos clientes da empresa ativa. O vínculo cliente → equipamento é validado no banco e no servidor.</p></div><button id="newEquipmentButton" class="saas-button" type="button">Novo equipamento</button></section>
+    <section class="saas-card saas-toolbar saas-toolbar-wide" aria-label="Filtros de equipamentos"><label><span>Pesquisar</span><input id="searchInput" class="saas-input" type="search" placeholder="Código, marca, modelo, série, patrimônio ou cliente"></label><label><span>Cliente</span><select id="customerFilter" class="saas-select"><option value="">Todos</option></select></label><label><span>Status</span><select id="statusFilter" class="saas-select"><option value="">Todos</option><option value="active">Ativos</option><option value="inactive">Inativos</option><option value="retired">Baixados</option></select></label><button id="refreshButton" class="saas-button secondary" type="button">Atualizar</button></section>
+    <div id="feedback" class="saas-feedback" aria-live="polite"></div><section id="equipmentGrid" class="saas-grid" aria-live="polite"></section><div class="saas-pagination"><button id="previousButton" class="saas-button secondary" type="button">Anterior</button><span id="pageLabel">0 equipamentos</span><button id="nextButton" class="saas-button secondary" type="button">Próxima</button></div>
   </main>
-
-  <dialog id="equipmentDialog" class="saas-dialog">
-    <form id="equipmentForm" class="saas-form">
-      <div class="saas-dialog-header">
-        <div><span class="auth-kicker">ATIVO TÉCNICO</span><h2 id="dialogTitle">Novo equipamento</h2></div>
-        <button id="closeDialogButton" class="saas-button secondary" type="button">Fechar</button>
-      </div>
-      <input id="equipmentId" type="hidden">
-      <div class="saas-form-grid">
-        <label><span>Cliente</span><select id="equipmentCustomer" class="saas-select" required></select></label>
-        <label><span>Categoria</span><input id="equipmentCategory" class="saas-input" value="air_conditioner" required maxlength="80"></label>
-        <label><span>Marca</span><input id="equipmentBrand" class="saas-input" maxlength="120"></label>
-        <label><span>Modelo</span><input id="equipmentModel" class="saas-input" maxlength="120"></label>
-        <label><span>Número de série</span><input id="equipmentSerial" class="saas-input" maxlength="120"></label>
-        <label><span>Patrimônio / tag</span><input id="equipmentAssetTag" class="saas-input" maxlength="120"></label>
-        <label><span>Capacidade BTU</span><input id="equipmentCapacity" class="saas-input" type="number" min="0" max="10000000" step="1"></label>
-        <label><span>Refrigerante</span><input id="equipmentRefrigerant" class="saas-input" maxlength="80" placeholder="R-410A"></label>
-        <label><span>Localização</span><input id="equipmentLocation" class="saas-input" maxlength="240" placeholder="Recepção, sala 2, cobertura..."></label>
-        <label><span>Status</span><select id="equipmentStatus" class="saas-select"><option value="active">Ativo</option><option value="inactive">Inativo</option><option value="retired">Baixado</option></select></label>
-      </div>
-      <label><span>Observações</span><textarea id="equipmentNotes" class="saas-textarea" maxlength="3000"></textarea></label>
-      <div class="saas-dialog-actions">
-        <button id="cancelDialogButton" class="saas-button secondary" type="button">Cancelar</button>
-        <button id="saveEquipmentButton" class="saas-button" type="submit">Salvar equipamento</button>
-      </div>
-    </form>
-  </dialog>
+  <dialog id="equipmentDialog" class="saas-dialog"><form id="equipmentForm" class="saas-form"><div class="saas-dialog-header"><div><span class="auth-kicker">ATIVO TÉCNICO</span><h2 id="dialogTitle">Novo equipamento</h2></div><button id="closeDialogButton" class="saas-button secondary" type="button">Fechar</button></div><input id="equipmentId" type="hidden"><div class="saas-form-grid"><label><span>Cliente</span><select id="equipmentCustomer" class="saas-select" required></select></label><label><span>Categoria</span><input id="equipmentCategory" class="saas-input" value="air_conditioner" required maxlength="80"></label><label><span>Marca</span><input id="equipmentBrand" class="saas-input" maxlength="120"></label><label><span>Modelo</span><input id="equipmentModel" class="saas-input" maxlength="120"></label><label><span>Número de série</span><input id="equipmentSerial" class="saas-input" maxlength="120"></label><label><span>Patrimônio / tag</span><input id="equipmentAssetTag" class="saas-input" maxlength="120"></label><label><span>Capacidade BTU</span><input id="equipmentCapacity" class="saas-input" type="number" min="0" max="10000000" step="1"></label><label><span>Refrigerante</span><input id="equipmentRefrigerant" class="saas-input" maxlength="80" placeholder="R-410A"></label><label><span>Localização</span><input id="equipmentLocation" class="saas-input" maxlength="240"></label><label><span>Status</span><select id="equipmentStatus" class="saas-select"><option value="active">Ativo</option><option value="inactive">Inativo</option><option value="retired">Baixado</option></select></label></div><label><span>Observações</span><textarea id="equipmentNotes" class="saas-textarea" maxlength="3000"></textarea></label><div class="saas-dialog-actions"><button id="cancelDialogButton" class="saas-button secondary" type="button">Cancelar</button><button id="saveEquipmentButton" class="saas-button" type="submit">Salvar equipamento</button></div></form></dialog>
 </body>
 </html>

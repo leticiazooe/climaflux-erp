@@ -6,13 +6,13 @@ import {
   routeFieldServiceApi,
 } from './field-service.js';
 import { inventoryErrorResponse, routeInventoryApi } from './inventory.js';
+import { purchasingErrorResponse, routePurchasingApi } from './purchasing.js';
 
 function isFieldPath(pathname) {
   return pathname === '/api/v1/field/lookups'
     || pathname === '/api/v1/field/visits'
     || pathname.startsWith('/api/v1/field/visits/');
 }
-
 function isInventoryPath(pathname) {
   return pathname === '/api/v1/inventory/items'
     || pathname.startsWith('/api/v1/inventory/items/')
@@ -21,6 +21,7 @@ function isInventoryPath(pathname) {
     || pathname === '/api/v1/inventory/balances'
     || pathname === '/api/v1/inventory/movements';
 }
+function isPurchasingPath(pathname) { return pathname === '/api/v1/purchases/lookups' || pathname === '/api/v1/purchases/suppliers' || pathname.startsWith('/api/v1/purchases/suppliers/') || pathname === '/api/v1/purchases/orders' || pathname.startsWith('/api/v1/purchases/orders/'); }
 
 async function augmentSessionResponse(request, env, context) {
   const response = await saasWorker.fetch(request, env, context);
@@ -48,20 +49,8 @@ async function restrictTechnicianLookups(response, request, env, pathname) {
   return new Response(JSON.stringify(body), { status: response.status, headers });
 }
 
-function notFound(message) {
-  return new Response(JSON.stringify({ ok: false, code: 'NOT_FOUND', message }), {
-    status: 404,
-    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
-  });
-}
-
-function conflict(code, message) {
-  return new Response(JSON.stringify({ ok: false, code, message }), {
-    status: 409,
-    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
-  });
-}
-
+function notFound(message) { return new Response(JSON.stringify({ ok: false, code: 'NOT_FOUND', message }), { status: 404, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } }); }
+function conflict(code, message) { return new Response(JSON.stringify({ ok: false, code, message }), { status: 409, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } }); }
 function inventoryError(error) {
   const code = error instanceof Error ? error.message : 'UNKNOWN';
   if (code.includes('INVENTORY_OPENING_ALREADY_EXISTS')) return conflict('INVENTORY_OPENING_ALREADY_EXISTS', 'O saldo inicial deste item/local já foi registrado. Use uma entrada ou ajuste.');
@@ -73,32 +62,20 @@ function inventoryError(error) {
 export default {
   async fetch(request, env, context) {
     const pathname = new URL(request.url).pathname;
+    if ((pathname === '/api/v1/me' || pathname === '/api/auth/me') && request.method === 'GET') return augmentSessionResponse(request, env, context);
 
-    if ((pathname === '/api/v1/me' || pathname === '/api/auth/me') && request.method === 'GET') {
-      return augmentSessionResponse(request, env, context);
+    if (isPurchasingPath(pathname)) {
+      try { const response = await routePurchasingApi(request, env, pathname); return response || notFound('Rota de compras não encontrada.'); }
+      catch (error) { console.error('Purchasing API failure', error); return purchasingErrorResponse(error); }
     }
-
     if (isInventoryPath(pathname)) {
-      try {
-        const response = await routeInventoryApi(request, env, pathname);
-        return response || notFound('Rota de estoque não encontrada.');
-      } catch (error) {
-        console.error('Inventory API failure', error);
-        return inventoryError(error);
-      }
+      try { const response = await routeInventoryApi(request, env, pathname); return response || notFound('Rota de estoque não encontrada.'); }
+      catch (error) { console.error('Inventory API failure', error); return inventoryError(error); }
     }
-
     if (isFieldPath(pathname)) {
-      try {
-        const response = await routeFieldServiceApi(request, env, pathname);
-        if (!response) return notFound('Rota de operação de campo não encontrada.');
-        return restrictTechnicianLookups(response, request, env, pathname);
-      } catch (error) {
-        console.error('Field service API failure', error);
-        return fieldServiceErrorResponse(error);
-      }
+      try { const response = await routeFieldServiceApi(request, env, pathname); if (!response) return notFound('Rota de operação de campo não encontrada.'); return restrictTechnicianLookups(response, request, env, pathname); }
+      catch (error) { console.error('Field service API failure', error); return fieldServiceErrorResponse(error); }
     }
-
     return saasWorker.fetch(request, env, context);
   },
 };

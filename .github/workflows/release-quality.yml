@@ -10,9 +10,9 @@ permissions:
   contents: read
 
 jobs:
-  validate-release:
+  validate-saas-foundation:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,17 +25,10 @@ jobs:
       - name: Install dependencies
         run: npm install --ignore-scripts
 
-      - name: Check session and access JavaScript
-        run: |
-          node --check preview/admin-access.js
-          node --check preview/login-preview.js
-          node --check preview/session-preview.js
-          node --check preview/session-sw.js
+      - name: Validate source, tests and release
+        run: npm run validate
 
-      - name: Rebuild verified public release
-        run: npm run build:public
-
-      - name: Verify v0.6.2 session flow
+      - name: Verify v0.7.0 SaaS foundation
         shell: bash
         run: |
           set -euo pipefail
@@ -46,21 +39,27 @@ jobs:
           test -s public/manifest.webmanifest
           test -s public/sw.js
           test -s public/icon.svg
-          test -s public/admin-access.html
-          test -s public/admin-access.css
-          test -s public/admin-access.js
+          test -s public/auth.css
           test -s public/login.html
-          test -s public/login-preview.js
-          test -s public/session-preview.css
-          test -s public/session-preview.js
-          grep -q 'Despacho e SLA' public/app.js
-          grep -q 'Portal do cliente' public/app.js
-          grep -q 'Usuários e permissões' public/admin-access.html
-          grep -q 'logoutButton' public/admin-access.html
-          grep -q 'Entrar no sistema' public/login.html
-          grep -q 'climaflux-preview-session-v1' public/login-preview.js
-          grep -q 'Sair do sistema' public/session-preview.js
-          grep -q 'Gestão de acessos' public/session-preview.js
-          grep -q 'session-preview.js' public/index.html
-          grep -q 'climaflux-v062-session-shell' public/sw.js
-          echo 'ClimaFlux ERP v0.6.2 login, logout, access preview and PWA cache validated.'
+          test -s public/login.js
+          test -s public/auth-client.js
+          test -s public/admin-access.html
+          test -s public/admin-access.js
+          test -s public/customers-saas.html
+          test -s public/customers-saas.js
+          test -s worker/index.js
+          test -s worker/auth.js
+          test -s worker/security.js
+          test -s worker/policy.js
+          test -s migrations/0001_saas_foundation.sql
+          grep -q 'climaflux-version' public/index.html
+          grep -q '0.7.0' public/index.html
+          grep -q 'accounts.google.com/gsi/client' public/login.html
+          grep -q '/api/v1/customers' public/customers-saas.js
+          grep -q '/api/v1/admin/invites' public/admin-access.js
+          grep -q 'climaflux-saas-public-v070' public/sw.js
+          grep -q 'run_worker_first' wrangler.jsonc
+          grep -q 'tenant_id TEXT NOT NULL' migrations/0001_saas_foundation.sql
+          grep -q 'LAST_ADMIN_REQUIRED' worker/index.js
+          grep -q 'Idempotency-Key' auth/auth-client.js
+          echo 'ClimaFlux ERP v0.7.0 SaaS foundation validated.'

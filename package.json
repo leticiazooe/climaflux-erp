@@ -2,11 +2,11 @@
   "name": "climaflux-erp",
   "version": "0.7.0",
   "private": true,
-  "description": "ClimaFlux ERP com fundação SaaS multiempresa, autenticação Google, D1, RBAC no servidor, auditoria e API de clientes.",
+  "description": "ClimaFlux ERP com fundação SaaS multiempresa, autenticação Google, D1, RBAC, clientes, equipamentos e ordens de serviço no backend.",
   "type": "module",
   "scripts": {
     "build:public": "node scripts/build-public.mjs",
-    "check": "node --check worker/auth-core.js && node --check worker/policy.js && node --check worker/security.js && node --check worker/auth.js && node --check worker/index.js && node --check auth/login.js && node --check auth/auth-client.js && node --check auth/admin-access.js && node --check auth/customers-saas.js && node --check auth/secure-sw.js && node --check scripts/build-public.mjs",
+    "check": "node --check worker/auth-core.js && node --check worker/policy.js && node --check worker/security.js && node --check worker/auth.js && node --check worker/index.js && node --check worker/operations.js && node --check worker/saas-worker.js && node --check auth/login.js && node --check auth/auth-client.js && node --check auth/admin-access.js && node --check auth/customers-saas.js && node --check auth/equipment-saas.js && node --check auth/work-orders-saas.js && node --check auth/secure-sw.js && node --check scripts/build-public.mjs",
     "test": "node --test tests/*.test.mjs",
     "validate": "npm run check && npm test && npm run build:public",
     "serve": "npm run build:public && python3 -m http.server 8080 --directory public",
@@ -17,10 +17,6 @@
     "db:migrate": "wrangler d1 migrations apply climaflux-saas --remote",
     "deploy": "npm run validate && wrangler deploy"
   },
-  "devDependencies": {
-    "wrangler": "4.119.0"
-  },
-  "engines": {
-    "node": ">=24"
-  }
+  "devDependencies": { "wrangler": "4.119.0" },
+  "engines": { "node": ">=24" }
 }

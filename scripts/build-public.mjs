@@ -46,6 +46,7 @@ const PREVIEW_ASSETS = [
   ['login-preview.js', 'login-preview.js'],
   ['session-preview.css', 'session-preview.css'],
   ['session-preview.js', 'session-preview.js'],
+  ['session-sw.js', 'sw.js'],
 ];
 
 function gitBlobSha1(buffer) {
@@ -114,7 +115,7 @@ async function installPreviewAssets() {
 }
 
 async function validatePublicOutput() {
-  const required = [...RELEASE_ASSETS, ...PREVIEW_ASSETS.map(([, target]) => target)];
+  const required = [...new Set([...RELEASE_ASSETS, ...PREVIEW_ASSETS.map(([, target]) => target)])];
   for (const asset of required) {
     const content = await readFile(resolve(OUTPUT_DIR, asset));
     if (!content.length) throw new Error(`Asset público vazio: ${asset}.`);
@@ -134,6 +135,10 @@ async function validatePublicOutput() {
   const sessionScript = await readFile(resolve(OUTPUT_DIR, 'session-preview.js'), 'utf8');
   if (!sessionScript.includes('climaflux-preview-session-v1') || !sessionScript.includes('Sair do sistema')) {
     throw new Error('O fluxo demonstrativo de sessão e saída está incompleto.');
+  }
+  const serviceWorker = await readFile(resolve(OUTPUT_DIR, 'sw.js'), 'utf8');
+  if (!serviceWorker.includes('climaflux-v062-session-shell') || !serviceWorker.includes('/login.html')) {
+    throw new Error('O service worker não invalida o cache anterior da sessão.');
   }
   return required.length;
 }

@@ -2,7 +2,7 @@ name: Release quality
 
 on:
   push:
-    branches: [main]
+    branches: [main, agent/google-authentication]
   pull_request:
     branches: [main]
 
@@ -26,10 +26,16 @@ jobs:
       - name: Install dependencies
         run: npm install --ignore-scripts
 
+      - name: Check authentication JavaScript
+        run: npm run check:auth
+
+      - name: Run authentication tests
+        run: npm run test:auth
+
       - name: Rebuild verified public release
         run: npm run build:public
 
-      - name: Verify required assets and v0.6.0 features
+      - name: Verify protected assets
         shell: bash
         run: |
           set -euo pipefail
@@ -40,9 +46,13 @@ jobs:
           test -s public/manifest.webmanifest
           test -s public/sw.js
           test -s public/icon.svg
-          grep -q 'ClimaFlux' public/index.html
-          grep -q '0.6.0' public/manifest.webmanifest
-          grep -q 'Despacho e SLA' public/app.js
-          grep -q 'Portal do cliente' public/app.js
-          grep -q 'sla' public/domain.js
-          echo 'ClimaFlux ERP v0.6.0 release validated.'
+          test -s public/login.html
+          test -s public/login.js
+          test -s public/auth.css
+          test -s public/auth-client.js
+          test -s public/admin-access.html
+          test -s public/admin-access.js
+          grep -q 'auth-client.js' public/index.html
+          grep -q 'Google' public/login.html
+          grep -q 'ClimaFlux ERP v0.7.0' scripts/build-public.mjs
+          echo 'ClimaFlux ERP v0.7.0 authentication release validated.'

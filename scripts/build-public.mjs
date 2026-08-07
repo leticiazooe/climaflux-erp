@@ -1,10 +1,11 @@
 import { createHash } from 'node:crypto';
 import { gunzipSync } from 'node:zlib';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve, sep } from 'node:path';
 
 const ROOT = resolve(process.cwd());
 const RELEASE_DIR = resolve(ROOT, '.release-v060');
+const PREVIEW_DIR = resolve(ROOT, 'preview');
 const OUTPUT_DIR = resolve(ROOT, 'public');
 const EXPECTED_ARCHIVE_SHA256 = '276dc082e046d202aeab91b807ee3bba9b20a403eba0187163f14e107b3750a5';
 const EXPECTED_PARTS = [
@@ -36,7 +37,7 @@ const EXPECTED_PARTS = [
   ['part-23.b64', '7fade86fb25b776606eb115953ed6c64baceda72'],
   ['part-24.b64', 'ae8a94af4273ff4741f0fe1f6bb3cc40cecfd19a'],
 ];
-const REQUIRED_ASSETS = [
+const RELEASE_ASSETS = [
   'app.js',
   'domain.js',
   'icon.svg',
@@ -44,6 +45,11 @@ const REQUIRED_ASSETS = [
   'manifest.webmanifest',
   'styles.css',
   'sw.js',
+];
+const PREVIEW_ASSETS = [
+  ['admin-access.html', 'admin-access.html'],
+  ['admin-access.css', 'admin-access.css'],
+  ['admin-access.js', 'admin-access.js'],
 ];
 
 function gitBlobSha1(buffer) {
@@ -94,7 +100,7 @@ async function extractTar(tarBuffer) {
     const dataEnd = dataStart + size;
 
     if (name && type !== '5') {
-      if (!REQUIRED_ASSETS.includes(name)) {
+      if (!RELEASE_ASSETS.includes(name)) {
         throw new Error(`Arquivo inesperado no release público: ${name}`);
       }
       const target = resolve(OUTPUT_DIR, name);
@@ -108,21 +114,45 @@ async function extractTar(tarBuffer) {
     offset = dataStart + Math.ceil(size / 512) * 512;
   }
 
-  const missing = REQUIRED_ASSETS.filter((asset) => !extracted.includes(asset));
+  const missing = RELEASE_ASSETS.filter((asset) => !extracted.includes(asset));
   if (missing.length) {
     throw new Error(`Assets obrigatórios ausentes: ${missing.join(', ')}.`);
   }
-  if (extracted.length !== REQUIRED_ASSETS.length) {
-    throw new Error(`Quantidade inesperada de assets: ${extracted.length}.`);
+  if (extracted.length !== RELEASE_ASSETS.length) {
+    throw new Error(`Quantidade inesperada de assets do ERP: ${extracted.length}.`);
   }
-  return extracted.length;
+}
+
+async function installAccessPreview() {
+  for (const [source, target] of PREVIEW_ASSETS) {
+    await copyFile(resolve(PREVIEW_DIR, source), resolve(OUTPUT_DIR, target));
+  }
+}
+
+async function validatePublicOutput() {
+  const required = [...RELEASE_ASSETS, ...PREVIEW_ASSETS.map(([, target]) => target)];
+  for (const asset of required) {
+    const content = await readFile(resolve(OUTPUT_DIR, asset));
+    if (!content.length) throw new Error(`Asset público vazio: ${asset}.`);
+  }
+  const page = await readFile(resolve(OUTPUT_DIR, 'admin-access.html'), 'utf8');
+  if (!page.includes('/admin-access.css') || !page.includes('/admin-access.js')) {
+    throw new Error('A Gestão de Acessos não referencia seus assets obrigatórios.');
+  }
+  const script = await readFile(resolve(OUTPUT_DIR, 'admin-access.js'), 'utf8');
+  if (!script.includes('climaflux-access-preview-v1')) {
+    throw new Error('A Gestão de Acessos não contém a persistência funcional da prévia.');
+  }
+  return required.length;
 }
 
 try {
-  console.log('Preparando ClimaFlux ERP v0.6.0...');
+  console.log('Preparando ClimaFlux ERP v0.6.1...');
   const archive = await rebuildArchive();
-  const count = await extractTar(gunzipSync(archive));
-  console.log(`ClimaFlux ERP v0.6.0 validado: ${count} arquivo(s) em ${OUTPUT_DIR}.`);
+  await extractTar(gunzipSync(archive));
+  await installAccessPreview();
+  const count = await validatePublicOutput();
+  console.log(`ClimaFlux ERP v0.6.1 validado: ${count} arquivo(s) públicos em ${OUTPUT_DIR}.`);
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;

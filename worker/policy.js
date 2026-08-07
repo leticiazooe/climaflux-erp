@@ -14,7 +14,7 @@ export const ROLE_PERMISSIONS = Object.freeze({
     'work_orders.read',
     'work_orders.write',
     'work_orders.assign',
-    'work_orders.status',
+    'work_orders.transition',
     'work_orders.delete',
     'audit.read',
   ]),
@@ -27,27 +27,17 @@ export const ROLE_PERMISSIONS = Object.freeze({
     'work_orders.read',
     'work_orders.write',
     'work_orders.assign',
-    'work_orders.status',
+    'work_orders.transition',
   ]),
   tecnico: Object.freeze([
     'tenant.read',
     'customers.read',
     'equipment.read',
     'work_orders.read',
-    'work_orders.status',
+    'work_orders.transition',
   ]),
-  estoque: Object.freeze([
-    'tenant.read',
-    'customers.read',
-    'equipment.read',
-    'work_orders.read',
-  ]),
-  financeiro: Object.freeze([
-    'tenant.read',
-    'customers.read',
-    'equipment.read',
-    'work_orders.read',
-  ]),
+  estoque: Object.freeze(['tenant.read', 'customers.read', 'equipment.read', 'work_orders.read']),
+  financeiro: Object.freeze(['tenant.read', 'customers.read', 'equipment.read', 'work_orders.read']),
 });
 
 export const PUBLIC_ASSET_PATHS = Object.freeze(new Set([
@@ -57,26 +47,6 @@ export const PUBLIC_ASSET_PATHS = Object.freeze(new Set([
   '/icon.svg',
   '/manifest.webmanifest',
 ]));
-
-export const EQUIPMENT_STATUSES = Object.freeze(['active', 'inactive', 'retired']);
-export const WORK_ORDER_PRIORITIES = Object.freeze(['low', 'normal', 'high', 'urgent']);
-export const WORK_ORDER_STATUSES = Object.freeze([
-  'open',
-  'scheduled',
-  'in_progress',
-  'paused',
-  'completed',
-  'cancelled',
-]);
-
-const WORK_ORDER_TRANSITIONS = Object.freeze({
-  open: Object.freeze(['scheduled', 'in_progress', 'cancelled']),
-  scheduled: Object.freeze(['open', 'in_progress', 'cancelled']),
-  in_progress: Object.freeze(['paused', 'completed', 'cancelled']),
-  paused: Object.freeze(['in_progress', 'completed', 'cancelled']),
-  completed: Object.freeze([]),
-  cancelled: Object.freeze([]),
-});
 
 export function can(role, permission) {
   const permissions = ROLE_PERMISSIONS[String(role || '').toLowerCase()] || [];
@@ -117,19 +87,6 @@ function cleanText(value, maxLength, { nullable = true } = {}) {
   return text.slice(0, maxLength);
 }
 
-function cleanId(value, required = false) {
-  const id = cleanText(value, 100);
-  if (required && !id) throw new Error('API_VALIDATION');
-  return id;
-}
-
-function cleanDateTime(value) {
-  if (value === null || value === undefined || value === '') return null;
-  const parsed = Date.parse(String(value));
-  if (!Number.isFinite(parsed)) throw new Error('WORK_ORDER_DATE_INVALID');
-  return new Date(parsed).toISOString();
-}
-
 export function normalizeCustomerInput(input, { partial = false } = {}) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('API_VALIDATION');
   const output = {};
@@ -162,81 +119,6 @@ export function normalizeCustomerInput(input, { partial = false } = {}) {
   return output;
 }
 
-export function normalizeEquipmentInput(input, { partial = false } = {}) {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('API_VALIDATION');
-  const output = {};
-  const has = (key) => Object.prototype.hasOwnProperty.call(input, key);
-
-  if (!partial || has('customerId')) {
-    const customerId = cleanId(input.customerId, !partial);
-    if (!customerId && !partial) throw new Error('EQUIPMENT_CUSTOMER_REQUIRED');
-    output.customerId = customerId;
-  }
-  if (!partial || has('category')) {
-    const category = cleanText(input.category, 120, { nullable: false });
-    if (!category || category.length < 2) throw new Error('EQUIPMENT_CATEGORY_REQUIRED');
-    output.category = category;
-  }
-  if (!partial || has('brand')) output.brand = cleanText(input.brand, 120);
-  if (!partial || has('model')) output.model = cleanText(input.model, 160);
-  if (!partial || has('serialNumber')) output.serialNumber = cleanText(input.serialNumber, 160);
-  if (!partial || has('assetTag')) output.assetTag = cleanText(input.assetTag, 120);
-  if (!partial || has('location')) output.location = cleanText(input.location, 240);
-  if (!partial || has('notes')) output.notes = cleanText(input.notes, 2000);
-  if (!partial || has('status')) {
-    const status = String(input.status || 'active').toLowerCase();
-    if (!EQUIPMENT_STATUSES.includes(status)) throw new Error('EQUIPMENT_STATUS_INVALID');
-    output.status = status;
-  }
-  if (partial && !Object.keys(output).length) throw new Error('API_VALIDATION');
-  return output;
-}
-
-export function normalizeWorkOrderInput(input, { partial = false } = {}) {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('API_VALIDATION');
-  const output = {};
-  const has = (key) => Object.prototype.hasOwnProperty.call(input, key);
-
-  if (!partial || has('customerId')) {
-    const customerId = cleanId(input.customerId, !partial);
-    if (!customerId && !partial) throw new Error('WORK_ORDER_CUSTOMER_REQUIRED');
-    output.customerId = customerId;
-  }
-  if (!partial || has('equipmentId')) output.equipmentId = cleanId(input.equipmentId);
-  if (!partial || has('assignedUserId')) output.assignedUserId = cleanId(input.assignedUserId);
-  if (!partial || has('summary')) {
-    const summary = cleanText(input.summary, 240, { nullable: false });
-    if (!summary || summary.length < 3) throw new Error('WORK_ORDER_SUMMARY_REQUIRED');
-    output.summary = summary;
-  }
-  if (!partial || has('description')) output.description = cleanText(input.description, 8000);
-  if (!partial || has('priority')) {
-    const priority = String(input.priority || 'normal').toLowerCase();
-    if (!WORK_ORDER_PRIORITIES.includes(priority)) throw new Error('WORK_ORDER_PRIORITY_INVALID');
-    output.priority = priority;
-  }
-  if (!partial || has('scheduledStart')) output.scheduledStart = cleanDateTime(input.scheduledStart);
-  if (!partial || has('scheduledEnd')) output.scheduledEnd = cleanDateTime(input.scheduledEnd);
-  if (!partial || has('slaDueAt')) output.slaDueAt = cleanDateTime(input.slaDueAt);
-  if (has('status')) throw new Error('WORK_ORDER_STATUS_SEPARATE');
-  if (partial && !Object.keys(output).length) throw new Error('API_VALIDATION');
-  return output;
-}
-
-export function normalizeWorkOrderTransition(input) {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('API_VALIDATION');
-  const status = String(input.status || '').toLowerCase();
-  if (!WORK_ORDER_STATUSES.includes(status)) throw new Error('WORK_ORDER_STATUS_INVALID');
-  return {
-    status,
-    note: cleanText(input.note, 2000),
-  };
-}
-
-export function canTransitionWorkOrder(fromStatus, toStatus) {
-  return (WORK_ORDER_TRANSITIONS[String(fromStatus || '')] || []).includes(String(toStatus || ''));
-}
-
 export function normalizeInviteInput(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('API_VALIDATION');
   const email = normalizeEmail(input.email);
@@ -257,14 +139,4 @@ export function normalizeMembershipInput(input) {
 
 export function customerCodeFromId(id) {
   return `CLI-${String(id).replace(/-/g, '').slice(0, 8).toUpperCase()}`;
-}
-
-export function equipmentCodeFromId(id) {
-  return `EQP-${String(id).replace(/-/g, '').slice(0, 8).toUpperCase()}`;
-}
-
-export function workOrderNumberFromId(id, date = new Date()) {
-  const day = date.toISOString().slice(0, 10).replace(/-/g, '');
-  const suffix = String(id).replace(/-/g, '').slice(0, 6).toUpperCase();
-  return `OS-${day}-${suffix}`;
 }

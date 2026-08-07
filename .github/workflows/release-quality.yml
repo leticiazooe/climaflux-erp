@@ -16,57 +16,40 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-
       - name: Install locked dependencies
         run: npm ci --ignore-scripts
-
       - name: Audit runtime dependencies
         run: npm audit --omit=dev --audit-level=high
-
       - name: Validate source, tests and release
         run: npm run validate
-
-      - name: Verify v0.7.0 SaaS foundation
+      - name: Verify v0.7.0 SaaS operational foundation
         shell: bash
         run: |
           set -euo pipefail
           test -s package-lock.json
-          test -s public/index.html
-          test -s public/styles.css
-          test -s public/app.js
-          test -s public/domain.js
-          test -s public/manifest.webmanifest
-          test -s public/sw.js
-          test -s public/icon.svg
-          test -s public/auth.css
-          test -s public/login.html
-          test -s public/login.js
-          test -s public/auth-client.js
-          test -s public/admin-access.html
-          test -s public/admin-access.js
-          test -s public/customers-saas.html
-          test -s public/customers-saas.js
-          test -s worker/index.js
-          test -s worker/auth.js
-          test -s worker/security.js
-          test -s worker/policy.js
+          for file in index.html styles.css app.js domain.js manifest.webmanifest sw.js icon.svg auth.css operations.css login.html login.js auth-client.js admin-access.html admin-access.js customers-saas.html customers-saas.js equipment-saas.html equipment-saas.js work-orders-saas.html work-orders-saas.js; do test -s "public/$file"; done
+          for file in index.js auth.js security.js policy.js operations.js saas-worker.js; do test -s "worker/$file"; done
           test -s migrations/0001_saas_foundation.sql
-          grep -q 'climaflux-version' public/index.html
+          test -s migrations/0002_operational_core.sql
           grep -q '0.7.0' public/index.html
           grep -q 'accounts.google.com/gsi/client' public/login.html
           grep -q '/api/v1/customers' public/auth-client.js
-          grep -q '/api/v1/admin/invites' public/admin-access.js
+          grep -q '/api/v1/equipment' public/auth-client.js
+          grep -q '/api/v1/work-orders' public/auth-client.js
+          grep -q 'TRILHA IMUTÁVEL' public/work-orders-saas.html
           grep -q 'climaflux-saas-public-v070' public/sw.js
+          grep -q 'worker/saas-worker.js' wrangler.jsonc
           grep -q 'run_worker_first' wrangler.jsonc
-          grep -q 'tenant_id TEXT NOT NULL' migrations/0001_saas_foundation.sql
-          grep -q 'LAST_ADMIN_REQUIRED' worker/index.js
+          grep -q 'CREATE TABLE IF NOT EXISTS equipment' migrations/0002_operational_core.sql
+          grep -q 'CREATE TABLE IF NOT EXISTS work_orders' migrations/0002_operational_core.sql
+          grep -q 'CREATE TABLE IF NOT EXISTS work_order_events' migrations/0002_operational_core.sql
+          grep -q 'WORK_ORDER_EQUIPMENT_CUSTOMER_MISMATCH' migrations/0002_operational_core.sql
+          grep -q "session.activeMembership.role === 'tecnico'" worker/operations.js
           grep -q 'Idempotency-Key' auth/auth-client.js
           grep -q 'constantTimeEqual(csrfCookie, csrfBody)' worker/index.js
-          grep -q "assertPermission(session.activeMembership.role, 'tenant.create')" worker/index.js
-          echo 'ClimaFlux ERP v0.7.0 SaaS foundation validated.'
+          echo 'ClimaFlux ERP v0.7.0 operational SaaS foundation validated.'

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#0b2239">
+  <title>Entrar · ClimaFlux ERP</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/auth.css">
+  <script src="https://accounts.google.com/gsi/client" async></script>
+  <script src="/login.js" defer></script>
+</head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <section class="auth-brand" aria-label="ClimaFlux ERP">
+      <div class="auth-logo" aria-hidden="true">CF</div>
+      <p class="auth-eyebrow">OPERAÇÃO TÉCNICA CONECTADA</p>
+      <h1>ClimaFlux ERP</h1>
+      <p>Ordens de serviço, equipes, contratos, estoque, financeiro, despacho e SLA em um só ambiente.</p>
+      <div class="auth-security-note">
+        <strong>Acesso protegido</strong>
+        <span>Autenticação Google, sessão segura e permissões por empresa.</span>
+      </div>
+    </section>
+
+    <section class="auth-card" aria-labelledby="loginTitle">
+      <div>
+        <span class="auth-kicker">Área restrita</span>
+        <h2 id="loginTitle">Entre com sua conta Google</h2>
+        <p>Use a conta autorizada pela sua empresa. O ClimaFlux não recebe nem armazena sua senha do Google.</p>
+      </div>
+
+      <div id="googleButton" class="google-button" aria-live="polite"></div>
+      <div id="loginStatus" class="auth-status" role="status" aria-live="polite"></div>
+
+      <div class="auth-divider"><span>segurança</span></div>
+      <ul class="auth-features">
+        <li>Token Google validado no servidor</li>
+        <li>Cookie de sessão protegido e revogável</li>
+        <li>Acesso vinculado à empresa e ao perfil</li>
+      </ul>
+      <p class="auth-legal">Ao entrar, você concorda com as políticas internas de acesso e auditoria da organização.</p>
+    </section>
+  </main>
+</body>
+</html>

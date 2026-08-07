@@ -26,6 +26,24 @@ async function augmentSessionResponse(request, env, context) {
   return new Response(JSON.stringify(body), { status: response.status, headers });
 }
 
+function operationalError(error) {
+  const code = error instanceof Error ? error.message : 'UNKNOWN';
+  if (code.includes('WORK_ORDER_ACTIVE_VISIT_EXISTS')) {
+    return new Response(JSON.stringify({
+      ok: false,
+      code: 'WORK_ORDER_ACTIVE_VISIT_EXISTS',
+      message: 'Finalize ou cancele a visita técnica ativa antes de trocar o técnico ou encerrar a ordem.',
+    }), {
+      status: 409,
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'no-store',
+      },
+    });
+  }
+  return operationalErrorResponse(error);
+}
+
 export default {
   async fetch(request, env, context) {
     const pathname = new URL(request.url).pathname;
@@ -50,7 +68,7 @@ export default {
         });
       } catch (error) {
         console.error('Operational API failure', error);
-        return operationalErrorResponse(error);
+        return operationalError(error);
       }
     }
 

@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "climaflux-erp",
+  "main": "./worker/index.js",
   "compatibility_date": "2026-08-06",
   "observability": {
     "enabled": true
@@ -9,11 +10,47 @@
     "command": "node scripts/build-public.mjs",
     "watch_dir": [
       ".release-v060",
+      "auth",
+      "worker",
       "scripts"
     ]
   },
   "assets": {
     "directory": "./public",
-    "not_found_handling": "single-page-application"
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": [
+      "/",
+      "/index.html",
+      "/login.html",
+      "/admin-access.html",
+      "/api/*",
+      "/sw.js"
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "climaflux-auth",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "DEFAULT_COMPANY_ID": "climaflux-default",
+    "DEFAULT_COMPANY_NAME": "ClimaFlux",
+    "DEFAULT_APP_COMPANY_KEY": "",
+    "BOOTSTRAP_APP_USER_KEY": "",
+    "ALLOWED_GOOGLE_DOMAINS": "",
+    "AUTO_PROVISION_ROLE": "",
+    "SESSION_TTL_SECONDS": "28800",
+    "SESSION_IDLE_SECONDS": "7200"
+  },
+  "secrets": {
+    "required": [
+      "GOOGLE_CLIENT_ID",
+      "SESSION_SECRET",
+      "BOOTSTRAP_ADMIN_EMAILS"
+    ]
   }
 }

@@ -126,6 +126,31 @@ BEGIN
   ) THEN RAISE(ABORT, 'FIELD_WORK_ORDER_INVALID') END;
 END;
 
+CREATE TRIGGER IF NOT EXISTS trg_service_visit_work_order_update
+BEFORE UPDATE OF work_order_id, technician_user_id, tenant_id ON service_visits
+BEGIN
+  SELECT CASE WHEN NOT EXISTS (
+    SELECT 1 FROM work_orders w
+    WHERE w.tenant_id = NEW.tenant_id
+      AND w.id = NEW.work_order_id
+      AND w.deleted_at IS NULL
+      AND w.status NOT IN ('completed', 'cancelled')
+      AND w.technician_user_id = NEW.technician_user_id
+  ) THEN RAISE(ABORT, 'FIELD_WORK_ORDER_INVALID') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_work_order_technician_active_visit_guard
+BEFORE UPDATE OF technician_user_id ON work_orders
+WHEN NEW.technician_user_id IS NOT OLD.technician_user_id
+BEGIN
+  SELECT CASE WHEN EXISTS (
+    SELECT 1 FROM service_visits v
+    WHERE v.tenant_id = OLD.tenant_id
+      AND v.work_order_id = OLD.id
+      AND v.status NOT IN ('completed', 'cancelled')
+  ) THEN RAISE(ABORT, 'WORK_ORDER_ACTIVE_VISIT_EXISTS') END;
+END;
+
 CREATE TRIGGER IF NOT EXISTS trg_service_visit_schedule_insert
 BEFORE INSERT ON service_visits
 WHEN NEW.scheduled_end IS NOT NULL

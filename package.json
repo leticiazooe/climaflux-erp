@@ -1,8 +1,8 @@
 {
   "name": "climaflux-erp",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "private": true,
-  "description": "ERP demonstrativo para assistência técnica em ar-condicionado e refrigeração, com SLA, despacho técnico, portal do cliente e prévia de gestão de acessos.",
+  "description": "ERP demonstrativo para assistência técnica em ar-condicionado e refrigeração, com SLA, despacho técnico, portal do cliente, gestão de acessos e sessão demonstrativa.",
   "type": "module",
   "scripts": {
     "build:public": "node scripts/build-public.mjs",

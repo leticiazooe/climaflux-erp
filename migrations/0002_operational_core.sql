@@ -24,7 +24,6 @@ CREATE TABLE IF NOT EXISTS equipment (
   updated_at TEXT NOT NULL,
   deleted_at TEXT,
   UNIQUE (tenant_id, code),
-  UNIQUE (tenant_id, serial_number),
   FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
   FOREIGN KEY (tenant_id, customer_id) REFERENCES customers(tenant_id, id) ON DELETE RESTRICT,
   FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT,
@@ -32,6 +31,12 @@ CREATE TABLE IF NOT EXISTS equipment (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_equipment_tenant_identity ON equipment(tenant_id, id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_equipment_tenant_serial_active
+  ON equipment(tenant_id, serial_number)
+  WHERE serial_number IS NOT NULL AND deleted_at IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_equipment_tenant_asset_tag_active
+  ON equipment(tenant_id, asset_tag)
+  WHERE asset_tag IS NOT NULL AND deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_equipment_tenant_customer ON equipment(tenant_id, customer_id, status, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_equipment_tenant_search ON equipment(tenant_id, brand, model, serial_number, asset_tag);
 
@@ -119,8 +124,42 @@ BEGIN
   ) THEN RAISE(ABORT, 'WORK_ORDER_EQUIPMENT_CUSTOMER_MISMATCH') END;
 END;
 
+CREATE TRIGGER IF NOT EXISTS trg_equipment_customer_reassignment_guard
+BEFORE UPDATE OF customer_id, tenant_id ON equipment
+WHEN NEW.customer_id <> OLD.customer_id OR NEW.tenant_id <> OLD.tenant_id
+BEGIN
+  SELECT CASE WHEN EXISTS (
+    SELECT 1 FROM work_orders w
+    WHERE w.tenant_id = OLD.tenant_id
+      AND w.equipment_id = OLD.id
+      AND w.deleted_at IS NULL
+  ) THEN RAISE(ABORT, 'EQUIPMENT_CUSTOMER_LOCKED_BY_WORK_ORDER') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_work_order_schedule_insert
+BEFORE INSERT ON work_orders
+WHEN NEW.scheduled_start IS NOT NULL AND NEW.scheduled_end IS NOT NULL
+BEGIN
+  SELECT CASE WHEN julianday(NEW.scheduled_end) < julianday(NEW.scheduled_start)
+    THEN RAISE(ABORT, 'WORK_ORDER_SCHEDULE_INVALID') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_work_order_schedule_update
+BEFORE UPDATE OF scheduled_start, scheduled_end ON work_orders
+WHEN NEW.scheduled_start IS NOT NULL AND NEW.scheduled_end IS NOT NULL
+BEGIN
+  SELECT CASE WHEN julianday(NEW.scheduled_end) < julianday(NEW.scheduled_start)
+    THEN RAISE(ABORT, 'WORK_ORDER_SCHEDULE_INVALID') END;
+END;
+
 CREATE TRIGGER IF NOT EXISTS trg_work_order_events_immutable_update
 BEFORE UPDATE ON work_order_events
+BEGIN
+  SELECT RAISE(ABORT, 'WORK_ORDER_EVENT_IMMUTABLE');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_work_order_events_immutable_delete
+BEFORE DELETE ON work_order_events
 BEGIN
   SELECT RAISE(ABORT, 'WORK_ORDER_EVENT_IMMUTABLE');
 END;

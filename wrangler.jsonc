@@ -1,20 +1,12 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "climaflux-erp",
-  "main": "./worker/index.js",
+  "main": "./worker/saas-worker.js",
   "compatibility_date": "2026-08-06",
-  "observability": {
-    "enabled": true
-  },
+  "observability": { "enabled": true },
   "build": {
     "command": "node scripts/build-public.mjs",
-    "watch_dir": [
-      ".release-v060",
-      "auth",
-      "worker",
-      "migrations",
-      "scripts"
-    ]
+    "watch_dir": [".release-v060", "auth", "worker", "migrations", "scripts"]
   },
   "assets": {
     "directory": "./public",

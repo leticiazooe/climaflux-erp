@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Gestão de acessos · ClimaFlux ERP</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/auth.css">
+  <script src="/auth-client.js" defer></script>
+  <script src="/admin-access.js" defer></script>
+</head>
+<body class="admin-auth-page">
+  <header class="admin-auth-header">
+    <div>
+      <strong>ClimaFlux ERP</strong>
+      <div id="tenantLabel">Gestão de acessos</div>
+    </div>
+    <nav>
+      <a href="/">ERP</a>
+      <a href="/customers-saas.html">Clientes SaaS</a>
+    </nav>
+  </header>
+
+  <main class="admin-auth-main">
+    <h1>Equipe e permissões</h1>
+    <p>Convide contas Google para a empresa ativa e controle o perfil e o status de cada vínculo.</p>
+    <div id="adminStatus" class="auth-status" aria-live="polite"></div>
+
+    <section class="admin-auth-section saas-card" aria-labelledby="inviteTitle">
+      <h2 id="inviteTitle">Convidar usuário</h2>
+      <form id="inviteForm" class="admin-auth-invite">
+        <label>
+          <span>E-mail Google</span>
+          <input id="inviteEmail" class="saas-input" name="email" type="email" required autocomplete="email" placeholder="nome@empresa.com">
+        </label>
+        <label>
+          <span>Perfil inicial</span>
+          <select id="inviteRole" class="saas-select" name="role">
+            <option value="atendimento">Atendimento</option>
+            <option value="tecnico">Técnico</option>
+            <option value="estoque">Estoque</option>
+            <option value="financeiro">Financeiro</option>
+            <option value="gestor">Gestor</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </label>
+        <button class="saas-button" type="submit">Criar convite</button>
+      </form>
+    </section>
+
+    <section class="admin-auth-section" aria-labelledby="membersTitle">
+      <h2 id="membersTitle">Membros da empresa</h2>
+      <div id="memberGrid" class="admin-auth-grid" aria-live="polite"></div>
+    </section>
+
+    <section class="admin-auth-section" aria-labelledby="invitesTitle">
+      <h2 id="invitesTitle">Convites pendentes</h2>
+      <div id="inviteGrid" class="admin-auth-grid" aria-live="polite"></div>
+    </section>
+  </main>
+</body>
+</html>

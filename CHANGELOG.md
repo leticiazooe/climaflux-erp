@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.6.2 — 2026-08-06
+
+### Adicionado
+
+- Tela de entrada demonstrativa em `/login.html`.
+- Sessão local de navegação com retorno seguro à rota solicitada.
+- Botão **Sair do sistema** no ERP e na Gestão de Acessos.
+- Confirmação antes do encerramento da sessão.
+- Atalho flutuante para a Gestão de Acessos.
+- Indicador visual de sessão demonstrativa.
+- Quality gates para entrada, saída e rotas administrativas.
+
+### Alterado
+
+- Logout passou a remover somente o estado da sessão, preservando os dados operacionais locais.
+- Service worker atualizado para `climaflux-v062-session-shell`.
+- Cache antigo do PWA é removido durante a ativação da nova versão.
+- Build público passou a validar 14 arquivos obrigatórios.
+
+## 0.6.1 — 2026-08-06
+
+### Adicionado
+
+- Prévia funcional da Gestão de Acessos em `/admin-access.html`.
+- Pesquisa e filtros por nome, e-mail, status e perfil.
+- Edição de empresa, perfil e situação do usuário.
+- Cadastro demonstrativo de novos usuários.
+- Indicadores e histórico local de alterações.
+
+### Alterado
+
+- O build passou a copiar e validar os assets da Gestão de Acessos.
+
 ## 0.6.0 — 2026-08-06
 
 ### Adicionado

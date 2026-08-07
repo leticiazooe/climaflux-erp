@@ -10,8 +10,8 @@
     "start": "npm run serve",
     "preview": "wrangler dev",
     "deploy": "wrangler deploy",
-    "test:auth": "node --test tests/auth.test.mjs",
-    "check:auth": "node --check worker/index.js && node --check worker/auth-core.js && node --check auth/login.js && node --check auth/auth-client.js && node --check auth/admin-access.js && node --check auth/secure-sw.js",
+    "test:auth": "node --test tests/auth.test.mjs tests/router.test.mjs",
+    "check:auth": "node --check worker/router.js && node --check worker/index.js && node --check worker/auth-core.js && node --check auth/login.js && node --check auth/auth-client.js && node --check auth/admin-access.js && node --check auth/secure-sw.js",
     "auth:db:create": "wrangler d1 create climaflux-auth",
     "auth:migrate:local": "wrangler d1 migrations apply DB --local",
     "auth:migrate": "wrangler d1 migrations apply DB --remote"

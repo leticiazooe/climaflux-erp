@@ -5,11 +5,21 @@ import {
   fieldServiceErrorResponse,
   routeFieldServiceApi,
 } from './field-service.js';
+import { inventoryErrorResponse, routeInventoryApi } from './inventory.js';
 
 function isFieldPath(pathname) {
   return pathname === '/api/v1/field/lookups'
     || pathname === '/api/v1/field/visits'
     || pathname.startsWith('/api/v1/field/visits/');
+}
+
+function isInventoryPath(pathname) {
+  return pathname === '/api/v1/inventory/items'
+    || pathname.startsWith('/api/v1/inventory/items/')
+    || pathname === '/api/v1/inventory/locations'
+    || pathname.startsWith('/api/v1/inventory/locations/')
+    || pathname === '/api/v1/inventory/balances'
+    || pathname === '/api/v1/inventory/movements';
 }
 
 async function augmentSessionResponse(request, env, context) {
@@ -38,6 +48,13 @@ async function restrictTechnicianLookups(response, request, env, pathname) {
   return new Response(JSON.stringify(body), { status: response.status, headers });
 }
 
+function notFound(message) {
+  return new Response(JSON.stringify({ ok: false, code: 'NOT_FOUND', message }), {
+    status: 404,
+    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
+  });
+}
+
 export default {
   async fetch(request, env, context) {
     const pathname = new URL(request.url).pathname;
@@ -46,22 +63,20 @@ export default {
       return augmentSessionResponse(request, env, context);
     }
 
+    if (isInventoryPath(pathname)) {
+      try {
+        const response = await routeInventoryApi(request, env, pathname);
+        return response || notFound('Rota de estoque não encontrada.');
+      } catch (error) {
+        console.error('Inventory API failure', error);
+        return inventoryErrorResponse(error);
+      }
+    }
+
     if (isFieldPath(pathname)) {
       try {
         const response = await routeFieldServiceApi(request, env, pathname);
-        if (!response) {
-          return new Response(JSON.stringify({
-            ok: false,
-            code: 'NOT_FOUND',
-            message: 'Rota de operação de campo não encontrada.',
-          }), {
-            status: 404,
-            headers: {
-              'Content-Type': 'application/json; charset=utf-8',
-              'Cache-Control': 'no-store',
-            },
-          });
-        }
+        if (!response) return notFound('Rota de operação de campo não encontrada.');
         return restrictTechnicianLookups(response, request, env, pathname);
       } catch (error) {
         console.error('Field service API failure', error);

@@ -20,6 +20,10 @@ export const ROLE_PERMISSIONS = Object.freeze({
     'field_service.write',
     'field_service.status',
     'field_service.record',
+    'inventory.read',
+    'inventory.write',
+    'inventory.move',
+    'inventory.adjust',
     'audit.read',
   ]),
   atendimento: Object.freeze([
@@ -35,6 +39,7 @@ export const ROLE_PERMISSIONS = Object.freeze({
     'field_service.read',
     'field_service.write',
     'field_service.status',
+    'inventory.read',
   ]),
   tecnico: Object.freeze([
     'tenant.read',
@@ -45,9 +50,20 @@ export const ROLE_PERMISSIONS = Object.freeze({
     'field_service.read',
     'field_service.status',
     'field_service.record',
+    'inventory.read',
+    'inventory.issue',
   ]),
-  estoque: Object.freeze(['tenant.read', 'customers.read', 'equipment.read', 'work_orders.read']),
-  financeiro: Object.freeze(['tenant.read', 'customers.read', 'equipment.read', 'work_orders.read']),
+  estoque: Object.freeze([
+    'tenant.read',
+    'customers.read',
+    'equipment.read',
+    'work_orders.read',
+    'inventory.read',
+    'inventory.write',
+    'inventory.move',
+    'inventory.adjust',
+  ]),
+  financeiro: Object.freeze(['tenant.read', 'customers.read', 'equipment.read', 'work_orders.read', 'inventory.read']),
 });
 
 export const PUBLIC_ASSET_PATHS = Object.freeze(new Set([

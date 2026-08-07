@@ -9,6 +9,7 @@
     "command": "node scripts/build-public.mjs",
     "watch_dir": [
       ".release-v060",
+      "preview",
       "scripts"
     ]
   },

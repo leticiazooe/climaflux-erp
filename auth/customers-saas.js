@@ -3,6 +3,7 @@
 
   const elements = {
     tenantLabel: document.getElementById('tenantLabel'),
+    accessNavLink: document.getElementById('accessNavLink'),
     feedback: document.getElementById('feedback'),
     grid: document.getElementById('customerGrid'),
     search: document.getElementById('searchInput'),
@@ -238,6 +239,7 @@
     const permissions = state.client.session.permissions || [];
     state.canWrite = permissions.includes('*') || permissions.includes('customers.write');
     state.canDelete = permissions.includes('*') || permissions.includes('customers.delete');
+    elements.accessNavLink.hidden = !permissions.includes('*') && !permissions.includes('members.read');
     const tenant = state.client.session.activeTenant || state.client.session.activeCompany;
     elements.tenantLabel.textContent = tenant.tenant_name || tenant.company_name;
     await load();

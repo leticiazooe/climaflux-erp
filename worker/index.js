@@ -1,4 +1,5 @@
 import {
+  constantTimeEqual,
   normalizeEmail,
   parseCookies,
   safeReturnTo,
@@ -88,7 +89,7 @@ async function handleAuthConfig(request, env) {
     sameSite: 'Strict',
   }));
   appendCookie(headers, serializeCookie(LOGIN_CSRF_COOKIE, csrf, {
-    httpOnly: false,
+    httpOnly: true,
     maxAge: 10 * 60,
     sameSite: 'Strict',
   }));
@@ -105,7 +106,11 @@ async function handleGoogleLogin(request, env) {
   const csrfCookie = cookies[LOGIN_CSRF_COOKIE] || '';
   const csrfBody = String(body.csrf || '');
   const csrfHeader = request.headers.get('X-CSRF-Token') || '';
-  if (!csrfCookie || csrfCookie !== csrfBody || csrfCookie !== csrfHeader) throw new Error('AUTH_CSRF');
+  if (
+    !csrfCookie ||
+    !constantTimeEqual(csrfCookie, csrfBody) ||
+    !constantTimeEqual(csrfCookie, csrfHeader)
+  ) throw new Error('AUTH_CSRF');
 
   const payload = await verifyGoogleIdToken(
     String(body.credential || ''),
@@ -185,6 +190,7 @@ async function handleTenantSwitch(request, env) {
 
 async function handleTenantCreate(request, env) {
   const session = await requireSession(env, request);
+  assertPermission(session.activeMembership.role, 'tenant.create');
   await verifyCsrf(request, session);
   if (String(env.ENABLE_TENANT_CREATION || '').toLowerCase() !== 'true') {
     throw new Error('TENANT_CREATION_DISABLED');
@@ -595,6 +601,12 @@ async function handleAdminInviteCancel(request, env, inviteId) {
 
 function errorResponse(error) {
   const code = error instanceof Error ? error.message : 'UNKNOWN';
+  if (/UNIQUE constraint failed: customers\./i.test(code)) {
+    return json({ ok: false, code: 'CUSTOMER_DUPLICATE', message: 'Já existe um cliente com este código ou documento nesta empresa.' }, 409);
+  }
+  if (/UNIQUE constraint failed: tenants\.slug/i.test(code)) {
+    return json({ ok: false, code: 'TENANT_SLUG_CONFLICT', message: 'Já existe uma empresa com este identificador.' }, 409);
+  }
   const mapping = {
     AUTH_REQUIRED: [401, 'Sessão expirada ou inexistente.'],
     AUTH_FORBIDDEN: [403, 'Você não possui permissão para esta ação.'],
@@ -604,6 +616,18 @@ function errorResponse(error) {
     AUTH_RATE_LIMITED: [429, 'Muitas tentativas. Aguarde alguns minutos.'],
     AUTH_USER_SUSPENDED: [403, 'Sua conta está suspensa.'],
     AUTH_SECRETS_NOT_CONFIGURED: [503, 'As credenciais Google ainda não foram configuradas.'],
+    GOOGLE_TOKEN_MISSING: [401, 'A credencial Google não foi recebida.'],
+    GOOGLE_TOKEN_MALFORMED: [401, 'A credencial Google é inválida.'],
+    GOOGLE_TOKEN_ALGORITHM: [401, 'O algoritmo da credencial Google não é permitido.'],
+    GOOGLE_TOKEN_SIGNATURE: [401, 'A assinatura da credencial Google é inválida.'],
+    GOOGLE_TOKEN_AUDIENCE: [401, 'A credencial Google não pertence a esta aplicação.'],
+    GOOGLE_TOKEN_AUTHORIZED_PARTY: [401, 'A aplicação autorizada pela credencial Google é inválida.'],
+    GOOGLE_TOKEN_ISSUER: [401, 'O emissor da credencial Google é inválido.'],
+    GOOGLE_TOKEN_EXPIRED: [401, 'A credencial Google expirou.'],
+    GOOGLE_TOKEN_ISSUED_AT: [401, 'O horário da credencial Google é inválido.'],
+    GOOGLE_TOKEN_NONCE: [401, 'A tentativa de login Google não corresponde à sessão atual.'],
+    GOOGLE_TOKEN_PROFILE: [401, 'O perfil da conta Google está incompleto.'],
+    GOOGLE_KEY_NOT_FOUND: [503, 'Não foi possível validar a chave pública do Google.'],
     DATABASE_NOT_CONFIGURED: [503, 'O banco SaaS ainda não foi configurado.'],
     ASSETS_NOT_CONFIGURED: [503, 'Os assets da aplicação não foram configurados.'],
     GOOGLE_DOMAIN_NOT_ALLOWED: [403, 'Esta conta Google não pertence a um domínio autorizado.'],

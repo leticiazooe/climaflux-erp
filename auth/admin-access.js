@@ -9,6 +9,7 @@
   const roles = ['admin', 'atendimento', 'tecnico', 'estoque', 'financeiro', 'gestor'];
   const membershipStatuses = ['active', 'pending', 'suspended'];
   let client;
+  let canWrite = false;
 
   function show(message, type = '') {
     status.textContent = message;
@@ -79,9 +80,14 @@
       appUserKey.placeholder = 'ID no ERP legado';
       appUserKey.setAttribute('aria-label', 'ID correspondente no ERP legado');
 
+      role.disabled = !canWrite;
+      memberStatus.disabled = !canWrite;
+      appUserKey.disabled = !canWrite;
+
       const save = document.createElement('button');
       save.type = 'button';
       save.textContent = 'Salvar';
+      save.hidden = !canWrite;
       save.addEventListener('click', async () => {
         save.disabled = true;
         show('Atualizando acesso…', 'loading');
@@ -132,6 +138,7 @@
       expiry.textContent = `Expira em ${new Date(invite.expires_at).toLocaleDateString('pt-BR')}`;
       const cancel = document.createElement('button');
       cancel.type = 'button';
+      cancel.hidden = !canWrite;
       cancel.className = 'saas-button danger';
       cancel.textContent = 'Cancelar';
       cancel.addEventListener('click', async () => {
@@ -186,6 +193,8 @@
   async function init() {
     client = await waitForClient();
     const permissions = client.session.permissions || [];
+    canWrite = permissions.includes('*') || permissions.includes('members.write');
+    inviteForm.closest('section').hidden = !canWrite;
     if (!permissions.includes('*') && !permissions.includes('members.read')) {
       throw new Error('Apenas administradores e gestores podem consultar a equipe.');
     }

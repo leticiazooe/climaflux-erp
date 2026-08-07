@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.7.0 — 2026-08-06
+
+### Adicionado
+
+- Cloudflare Worker executado antes dos assets estáticos.
+- Autenticação Google com validação de assinatura, audiência, emissor, expiração, nonce, e-mail e domínio.
+- Sessões revogáveis no D1 com cookie `Secure`, `HttpOnly` e `SameSite=Lax`.
+- Schema SaaS com tenants, usuários, vínculos, convites, sessões, clientes, auditoria, eventos de autenticação e idempotência.
+- RBAC aplicado no servidor.
+- Criação e troca de empresa.
+- Convites aceitos automaticamente no primeiro login Google correspondente.
+- Proteção do último administrador ativo de cada empresa.
+- Health check em `/api/health`.
+- API versionada `/api/v1`.
+- CRUD de clientes com escopo obrigatório por tenant, paginação, pesquisa, exclusão lógica e auditoria.
+- Tela protegida `/customers-saas.html` como primeiro módulo persistido no backend.
+- Gestão real de membros e convites em `/admin-access.html`.
+- Testes de autenticação, políticas, schema, isolamento e roteamento.
+
+### Alterado
+
+- Sessão demonstrativa da v0.6.2 substituída pela camada autenticada na branch da Fase 1.
+- Service worker passou a armazenar apenas assets públicos e nunca respostas de API.
+- Build público passou a injetar a camada SaaS e validar 15 assets protegidos.
+- Pipeline passou a executar `npm run validate` antes do deploy.
+
+### Pendente para ativação
+
+- Criar OAuth Client ID Web no Google Cloud.
+- Criar o banco D1 `climaflux-saas` e substituir o ID no `wrangler.jsonc`.
+- Configurar os secrets do Worker.
+- Aplicar migrations remotas.
+- Validar o domínio final em homologação.
+- Migrar os demais módulos ainda armazenados no navegador.
+
 ## 0.6.2 — 2026-08-06
 
 ### Adicionado

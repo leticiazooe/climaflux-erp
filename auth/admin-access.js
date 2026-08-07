@@ -35,6 +35,20 @@
     return select;
   }
 
+  function identityBlock(user) {
+    const identity = document.createElement('div');
+    const name = document.createElement('strong');
+    name.textContent = user.name || user.email;
+    const email = document.createElement('small');
+    email.textContent = user.email;
+    const access = document.createElement('small');
+    access.textContent = user.last_login_at
+      ? `Último acesso: ${new Date(user.last_login_at).toLocaleString('pt-BR')}`
+      : 'Ainda não acessou';
+    identity.append(name, email, access);
+    return identity;
+  }
+
   function render(rows) {
     grid.replaceChildren();
     const grouped = new Map();
@@ -49,9 +63,7 @@
       const card = document.createElement('article');
       card.className = 'admin-auth-card admin-auth-user';
 
-      const identity = document.createElement('div');
-      identity.innerHTML = `<strong>${user.name || user.email}</strong><small>${user.email}</small><small>${user.last_login_at ? `Último acesso: ${new Date(user.last_login_at).toLocaleString('pt-BR')}` : 'Ainda não acessou'}</small>`;
-
+      const identity = identityBlock(user);
       const company = selectField(companies, membership.company_id || companies[0]?.id, 'Empresa');
       const role = selectField(roles, membership.role || 'atendimento', 'Perfil');
       const membershipStatus = selectField(statuses, membership.membership_status || 'pending', 'Status');

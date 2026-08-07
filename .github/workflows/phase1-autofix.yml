@@ -1,0 +1,42 @@
+name: Phase 1 hardening autofix
+
+on:
+  push:
+    branches:
+      - agent/phase1-saas-foundation
+
+permissions:
+  contents: write
+
+jobs:
+  apply-hardening:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/phase1-saas-foundation
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Apply reviewed hardening patch
+        run: node scripts/phase1-hardening-autofix.mjs
+
+      - name: Remove one-time automation
+        run: |
+          rm scripts/phase1-hardening-autofix.mjs
+          rm .github/workflows/phase1-autofix.yml
+
+      - name: Commit hardening changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: harden Phase 1 authentication and permissions"
+          git push origin HEAD:agent/phase1-saas-foundation

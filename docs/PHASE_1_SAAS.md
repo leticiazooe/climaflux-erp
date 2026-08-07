@@ -2,254 +2,224 @@
 
 ## Objetivo
 
-Transformar a aplicação demonstrativa em uma base SaaS com autenticação, isolamento multiempresa, persistência no servidor e autorização aplicada no backend.
+Transformar o protótipo em uma base SaaS com identidade real, isolamento multiempresa, persistência no servidor e autorização no backend. A migração é incremental para preservar o ERP atual até cada domínio passar por testes.
 
-Esta entrega cria a fundação e migra o primeiro módulo de negócio. Ela não declara que todos os dados do ERP já saíram do navegador.
+## Entregue
 
-## Entregue nesta branch
+### Autenticação e sessão
 
-### Identidade e sessão
-
-- Google Identity Services.
-- Validação do ID token no Cloudflare Worker.
-- Verificação de assinatura RS256, `aud`, `azp`, `iss`, `exp`, `iat`, nonce, conta autoritativa e domínio permitido.
-- Sessões aleatórias com armazenamento apenas do hash no D1.
+- Google Identity Services com validação RS256 no Cloudflare Worker.
+- Verificações de `aud`, `azp`, `iss`, `exp`, `iat`, nonce, e-mail verificado e domínio permitido.
+- Sessões revogáveis no D1; somente hash do token é armazenado.
 - Cookie `__Host-climaflux_session` com `Secure`, `HttpOnly`, `SameSite=Lax` e `Path=/`.
 - Expiração absoluta e por inatividade.
-- Logout com revogação no banco.
-- Proteção CSRF e validação de origem.
-- Rate limiting de login baseado em eventos e hash do IP.
+- Logout revogável, CSRF, validação de origem e rate limiting.
 
-### Multiempresa
+### Multiempresa e equipe
 
-- Tabela `tenants`.
-- Tabela `memberships` com papéis e status por tenant.
-- Um usuário pode possuir múltiplos vínculos.
-- Tenant ativo armazenado na sessão.
-- Troca de tenant permitida somente para vínculos ativos.
-- Criação de tenant opcional por feature flag.
-- `tenant_id` nunca é aceito como origem de autoridade nas operações de clientes.
-
-### Equipe e convites
-
-- Convites por e-mail e tenant.
-- Perfis definidos no convite.
-- Aceite automático no primeiro login Google com o mesmo e-mail.
-- Expiração e cancelamento de convite.
-- Atualização de perfil e status.
-- Revogação das sessões do vínculo suspenso.
-- Proteção para manter pelo menos um administrador ativo.
-
-### RBAC
-
-Permissões iniciais:
-
-| Perfil | Permissões principais |
-|---|---|
-| admin | todas |
-| gestor | clientes, exclusão, auditoria e leitura de membros |
-| atendimento | leitura e escrita de clientes |
-| tecnico | leitura de clientes |
-| estoque | leitura de clientes |
-| financeiro | leitura de clientes |
-
-O Worker valida as permissões em cada endpoint. A interface apenas reflete a autorização, sem substituí-la.
-
-### Primeiro módulo de negócio
-
-`customers` é o primeiro módulo persistido no D1.
-
-Controles aplicados:
-
-- tenant obrigatório;
-- código único por tenant;
-- documento único por tenant;
-- paginação com limite máximo;
-- pesquisa parametrizada;
-- criação idempotente;
-- validação de entrada;
-- edição tenant-scoped;
-- exclusão lógica;
-- usuário criador e atualizador;
-- auditoria de criação, edição e exclusão.
-
-A interface de teste fica em `/customers-saas.html`.
+- `tenants`, `users`, `memberships`, `tenant_invites` e troca de tenant ativo.
+- Convite por e-mail aceito no primeiro login Google correspondente.
+- Perfis por tenant.
+- Suspensão revoga sessões do vínculo.
+- Último administrador ativo é protegido.
+- Criação de tenant opcional e restrita a administrador.
 
 ### Auditoria e operação
 
-- `audit_log` separado por tenant.
-- `auth_events` para eventos de login e logout.
-- hash de IP, nunca IP puro, nos registros de segurança.
-- user agent limitado.
-- health check com versão do schema.
-- observabilidade do Worker habilitada.
-- migrations versionadas.
+- `audit_log` tenant-scoped.
+- `auth_events` para segurança.
+- IP persistido somente como hash.
+- health check e schema versionado.
 - idempotency keys com expiração.
+- observabilidade do Worker habilitada.
 
-### PWA e cache
+## Domínios migrados para D1
 
-- Apenas assets públicos de login podem permanecer em cache.
-- Respostas `/api/*` usam `cache: no-store`.
-- HTML e assets autenticados são entregues com `Cache-Control: no-store, private`.
-- O cache antigo da sessão demonstrativa é removido.
+### 1. Clientes
 
-## Arquitetura
+Tabela `customers` e rotas `/api/v1/customers`.
+
+- pesquisa e paginação;
+- código/documento únicos por tenant;
+- criação idempotente;
+- edição e exclusão lógica;
+- auditoria;
+- tenant obtido exclusivamente da sessão.
+
+Interface: `/customers-saas.html`.
+
+### 2. Equipamentos
+
+Migration `0002_operational_core.sql`, tabela `equipment`.
+
+- cliente proprietário obrigatório;
+- código único por tenant;
+- série única por tenant quando informada;
+- marca, modelo, patrimônio, BTU, refrigerante e localização;
+- status ativo, inativo ou baixado;
+- criação idempotente;
+- edição e exclusão lógica;
+- exclusão bloqueada se houver OS não terminal;
+- FK composta `(tenant_id, customer_id)`.
+
+Interface: `/equipment-saas.html`.
+
+### 3. Ordens de Serviço e histórico
+
+Tabelas `work_orders` e `work_order_events`.
+
+- cliente obrigatório;
+- equipamento opcional, mas obrigatoriamente do mesmo cliente/tenant;
+- técnico precisa possuir vínculo `tecnico` ativo no mesmo tenant;
+- prioridade, agenda e prazo de SLA;
+- criação idempotente;
+- edição tenant-scoped;
+- máquina de estados explícita;
+- resolução obrigatória na conclusão;
+- motivo obrigatório para pausa/cancelamento;
+- exclusão lógica apenas em `draft`/`cancelled`;
+- histórico de criação, edição, atribuição, status e exclusão;
+- histórico sem endpoint de alteração e com trigger contra `UPDATE`;
+- técnico lista somente OS atribuídas ao próprio `user_id`.
+
+Interface: `/work-orders-saas.html`.
+
+## Máquina de estados da OS
+
+```text
+draft       -> open | cancelled
+open        -> scheduled | in_progress | cancelled
+scheduled   -> in_progress | on_hold | cancelled
+in_progress -> on_hold | completed | cancelled
+on_hold     -> scheduled | in_progress | completed | cancelled
+completed   -> terminal
+cancelled   -> terminal
+```
+
+Técnicos podem transicionar somente as próprias ordens e não podem cancelar nem reagendar pelo endpoint de transição.
+
+## RBAC operacional
+
+| Perfil | Clientes | Equipamentos | Ordens |
+|---|---|---|---|
+| admin | total | total | total |
+| gestor | leitura/escrita/exclusão | leitura/escrita/exclusão | leitura/escrita/atribuição/transição/exclusão |
+| atendimento | leitura/escrita | leitura/escrita | leitura/escrita/atribuição/transição |
+| tecnico | leitura | leitura | próprias OS + transição controlada |
+| estoque | leitura | leitura | leitura |
+| financeiro | leitura | leitura | leitura |
+
+O Worker é a fonte de autoridade. A interface apenas adapta os controles visíveis.
+
+## Arquitetura atual
 
 ```text
 Navegador
-  │
   ├── Google Identity Services
-  │
-  ▼
-Cloudflare Worker
-  ├── validação Google
-  ├── sessão / CSRF
-  ├── tenant context
-  ├── RBAC
-  ├── API /api/v1
-  ├── auditoria
-  └── proteção de assets
+  └── telas SaaS
         │
-        ├── D1: identidade, tenants, clientes e auditoria
-        └── Static Assets: ERP e telas SaaS
+        ▼
+worker/saas-worker.js
+  ├── APIs Equipamentos/OS
+  └── worker/index.js
+       ├── autenticação
+       ├── tenant/RBAC
+       ├── clientes/equipe/auditoria
+       └── static assets protegidos
+             │
+             ├── D1
+             └── Cloudflare Static Assets
 ```
 
-## Endpoints
+## APIs operacionais
 
-### Públicos
+### Equipamentos
 
-| Método | Rota | Finalidade |
-|---|---|---|
-| GET | `/api/health` | saúde da aplicação e versão do schema |
-| GET | `/api/auth/config` | Client ID, nonce e CSRF do login |
-| POST | `/api/auth/google` | validação Google e criação da sessão |
+- `GET /api/v1/equipment`
+- `POST /api/v1/equipment`
+- `PATCH /api/v1/equipment/:id`
+- `DELETE /api/v1/equipment/:id`
 
-### Sessão e tenant
+### Ordens
 
-| Método | Rota | Finalidade |
-|---|---|---|
-| GET | `/api/v1/me` | usuário, tenant, permissões e CSRF |
-| POST | `/api/auth/logout` | revogar sessão |
-| GET | `/api/v1/tenants` | listar vínculos do usuário |
-| POST | `/api/v1/tenants` | criar tenant quando habilitado |
-| POST | `/api/v1/tenant/switch` | trocar tenant ativo |
+- `GET /api/v1/work-orders`
+- `POST /api/v1/work-orders`
+- `PATCH /api/v1/work-orders/:id`
+- `DELETE /api/v1/work-orders/:id`
+- `POST /api/v1/work-orders/:id/status`
+- `GET /api/v1/work-orders/:id/history`
+- `GET /api/v1/work-orders/lookups`
 
-### Clientes
+## Validação atual
 
-| Método | Rota | Permissão |
-|---|---|---|
-| GET | `/api/v1/customers` | `customers.read` |
-| POST | `/api/v1/customers` | `customers.write` |
-| PATCH | `/api/v1/customers/:id` | `customers.write` |
-| DELETE | `/api/v1/customers/:id` | `customers.delete` |
+O pipeline executa:
 
-### Administração
-
-| Método | Rota | Permissão |
-|---|---|---|
-| GET | `/api/v1/admin/members` | `members.read` |
-| POST | `/api/v1/admin/invites` | `members.write` |
-| PATCH | `/api/v1/admin/members/:userId` | `members.write` |
-| DELETE | `/api/v1/admin/invites/:inviteId` | `members.write` |
-| GET | `/api/v1/audit` | `audit.read` |
+- `npm ci` com lockfile;
+- auditoria de dependências de runtime;
+- syntax check de Workers e clientes;
+- testes de autenticação/RBAC;
+- testes da migration operacional;
+- testes da máquina de estados;
+- testes de tenant isolation;
+- build do release;
+- validação de 20 assets protegidos.
 
 ## Ativação externa obrigatória
 
-### Google Cloud
+1. Criar OAuth Client ID Web no Google Cloud.
+2. Autorizar localhost, homologação e domínio final.
+3. Criar D1 `climaflux-saas`.
+4. Substituir `REPLACE_WITH_D1_DATABASE_ID`.
+5. Configurar secrets diretamente no Cloudflare:
+   - `GOOGLE_CLIENT_ID`;
+   - `SESSION_SECRET`;
+   - `BOOTSTRAP_ADMIN_EMAILS`.
+6. Aplicar migrations 0001 e 0002.
+7. Implantar em homologação.
 
-1. Criar uma credencial OAuth 2.0 do tipo **Aplicativo da Web**.
-2. Cadastrar as origens JavaScript:
-   - `http://localhost:8787`;
-   - URL `workers.dev` de homologação;
-   - domínio de produção.
-3. Guardar apenas o Client ID no secret `GOOGLE_CLIENT_ID`.
+Não enviar `SESSION_SECRET` por chat, commit, issue ou log.
 
-### Cloudflare D1
-
-```bash
-npm run db:create
-```
-
-Substituir `REPLACE_WITH_D1_DATABASE_ID` no `wrangler.jsonc` pelo ID retornado.
-
-```bash
-npm run db:migrate:local
-npm run db:migrate
-```
-
-### Secrets
-
-```bash
-npx wrangler secret put GOOGLE_CLIENT_ID
-npx wrangler secret put SESSION_SECRET
-npx wrangler secret put BOOTSTRAP_ADMIN_EMAILS
-```
-
-Recomendação para gerar o segredo de sessão localmente:
-
-```bash
-openssl rand -base64 48
-```
-
-Não versionar nem enviar esse valor por chat, issue, commit ou log.
-
-## Critérios antes do merge
+## Critérios antes do merge/deploy
 
 - [ ] D1 de homologação criado.
-- [ ] ID real configurado na branch de homologação.
-- [ ] migrations locais e remotas aplicadas.
+- [ ] ID real configurado.
+- [ ] migrations 0001 e 0002 aplicadas.
 - [ ] secrets configurados.
 - [ ] origem Google autorizada.
-- [ ] login do primeiro administrador testado.
-- [ ] convite e aceite por outro e-mail testados.
-- [ ] suspensão e revogação de sessão testadas.
-- [ ] duas empresas criadas.
+- [ ] primeiro administrador autenticado.
+- [ ] convite de segundo usuário testado.
+- [ ] duas empresas testadas.
 - [ ] cliente criado em cada empresa.
-- [ ] teste manual confirma que um tenant não enxerga o cliente do outro.
-- [ ] logout e expiração testados.
-- [ ] Cloudflare deploy validado sem erro.
-- [ ] backup/exportação do D1 definido.
+- [ ] equipamento criado em cada empresa.
+- [ ] OS criada em cada empresa.
+- [ ] tentativa de referência cruzada cliente/equipamento recusada.
+- [ ] técnico enxerga somente sua OS.
+- [ ] histórico de transições validado.
+- [ ] suspensão e revogação de sessão testadas.
+- [ ] backup/restauração do D1 testado.
+- [ ] URL de homologação e logs do Cloudflare validados.
 
-## Limitações atuais
+## Ainda local no protótipo
 
-### Ainda no navegador
-
-- ordens de serviço;
-- equipamentos;
-- agenda;
+- agenda e operação de campo detalhada;
 - contratos;
 - orçamentos;
 - vendas;
 - estoque;
 - compras;
 - financeiro;
-- despacho;
-- regras oficiais de SLA;
+- despacho avançado e motor oficial de SLA;
+- fotos, anexos e assinaturas;
 - portal do cliente.
-
-### Ainda não incluído
-
-- R2 para anexos;
-- envio real de e-mail dos convites;
-- cobrança e planos;
-- recuperação de conta alternativa;
-- MFA obrigatório;
-- painel interno da operadora do SaaS;
-- backup automatizado testado;
-- homologação separada da produção;
-- integração entre o módulo antigo de clientes e o novo endpoint.
 
 ## Próxima ordem de migração
 
-1. Ordens de serviço e histórico.
-2. Equipamentos e vínculo com clientes.
-3. Técnicos, agenda e operação de campo.
-4. Estoque e movimentações transacionais.
-5. Compras, vendas e financeiro.
-6. Contratos e motor oficial de SLA.
-7. Anexos e assinaturas no R2.
-8. Portal real do cliente.
+1. Técnicos, agenda e operação de campo.
+2. Estoque e movimentações transacionais.
+3. Compras e vendas.
+4. Financeiro.
+5. Contratos e motor oficial de SLA.
+6. R2 para fotos, anexos e assinaturas.
+7. Portal real do cliente.
 
-## Decisão de banco
-
-D1 é adequado para a fundação e para um beta controlado. Antes de ampliar a operação, medir concorrência, volume de escrita, tamanho dos anexos e necessidades de relatório. Caso a carga transacional exija, a API foi organizada para permitir a migração futura para PostgreSQL sem mover a autorização de volta ao navegador.
+D1 continua adequado para o beta controlado. Antes da expansão, medir concorrência e volume transacional para decidir se o domínio operacional permanece em D1 ou migra para PostgreSQL.

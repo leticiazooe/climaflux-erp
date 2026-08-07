@@ -118,6 +118,10 @@
     bar.append(link);
   }
 
+  function hasPermission(permission) {
+    return session.permissions.includes('*') || session.permissions.includes(permission);
+  }
+
   function sessionBar() {
     document.querySelector('.climaflux-session-bar')?.remove();
     const bar = document.createElement('aside');
@@ -167,10 +171,10 @@
     }
 
     appendLink(bar, '/', 'ERP');
-    appendLink(bar, '/customers-saas.html', 'Clientes SaaS');
-    if (session.permissions.includes('*') || session.permissions.includes('members.read')) {
-      appendLink(bar, '/admin-access.html', 'Acessos');
-    }
+    if (hasPermission('customers.read')) appendLink(bar, '/customers-saas.html', 'Clientes');
+    if (hasPermission('equipment.read')) appendLink(bar, '/equipment-saas.html', 'Equipamentos');
+    if (hasPermission('work_orders.read')) appendLink(bar, '/work-orders-saas.html', 'Ordens');
+    if (hasPermission('members.read')) appendLink(bar, '/admin-access.html', 'Acessos');
 
     const logout = document.createElement('button');
     logout.type = 'button';
@@ -193,6 +197,15 @@
     document.body.append(bar);
   }
 
+  function query(path, params = {}) {
+    const search = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== null && value !== undefined && value !== '') search.set(key, String(value));
+    }
+    const suffix = search.toString();
+    return api(`${path}${suffix ? `?${suffix}` : ''}`);
+  }
+
   async function init() {
     const body = await api('/api/v1/me');
     session = body;
@@ -203,12 +216,10 @@
     window.ClimaFluxSaaS = {
       ready,
       api,
+      hasPermission,
       get session() { return session; },
       get csrfToken() { return csrfToken; },
-      listCustomers(params = {}) {
-        const search = new URLSearchParams(params);
-        return api(`/api/v1/customers?${search.toString()}`);
-      },
+      listCustomers(params = {}) { return query('/api/v1/customers', params); },
       createCustomer(customer, idempotencyKey = crypto.randomUUID()) {
         return api('/api/v1/customers', {
           method: 'POST',
@@ -223,9 +234,48 @@
           body: JSON.stringify(customer),
         });
       },
-      deleteCustomer(id) {
-        return api(`/api/v1/customers/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      deleteCustomer(id) { return api(`/api/v1/customers/${encodeURIComponent(id)}`, { method: 'DELETE' }); },
+      listEquipment(params = {}) { return query('/api/v1/equipment', params); },
+      createEquipment(equipment, idempotencyKey = crypto.randomUUID()) {
+        return api('/api/v1/equipment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
+          body: JSON.stringify(equipment),
+        });
       },
+      updateEquipment(id, equipment) {
+        return api(`/api/v1/equipment/${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(equipment),
+        });
+      },
+      deleteEquipment(id) { return api(`/api/v1/equipment/${encodeURIComponent(id)}`, { method: 'DELETE' }); },
+      listWorkOrders(params = {}) { return query('/api/v1/work-orders', params); },
+      workOrderLookups() { return api('/api/v1/work-orders/lookups'); },
+      createWorkOrder(workOrder, idempotencyKey = crypto.randomUUID()) {
+        return api('/api/v1/work-orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
+          body: JSON.stringify(workOrder),
+        });
+      },
+      updateWorkOrder(id, workOrder) {
+        return api(`/api/v1/work-orders/${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(workOrder),
+        });
+      },
+      transitionWorkOrder(id, transition) {
+        return api(`/api/v1/work-orders/${encodeURIComponent(id)}/status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(transition),
+        });
+      },
+      workOrderHistory(id) { return api(`/api/v1/work-orders/${encodeURIComponent(id)}/history`); },
+      deleteWorkOrder(id) { return api(`/api/v1/work-orders/${encodeURIComponent(id)}`, { method: 'DELETE' }); },
     };
     resolveReady(window.ClimaFluxSaaS);
     setTimeout(synchronizeDemoContext, 250);

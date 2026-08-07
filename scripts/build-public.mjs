@@ -37,19 +37,15 @@ const EXPECTED_PARTS = [
   ['part-23.b64', '7fade86fb25b776606eb115953ed6c64baceda72'],
   ['part-24.b64', 'ae8a94af4273ff4741f0fe1f6bb3cc40cecfd19a'],
 ];
-const RELEASE_ASSETS = [
-  'app.js',
-  'domain.js',
-  'icon.svg',
-  'index.html',
-  'manifest.webmanifest',
-  'styles.css',
-  'sw.js',
-];
+const RELEASE_ASSETS = ['app.js', 'domain.js', 'icon.svg', 'index.html', 'manifest.webmanifest', 'styles.css', 'sw.js'];
 const PREVIEW_ASSETS = [
   ['admin-access.html', 'admin-access.html'],
   ['admin-access.css', 'admin-access.css'],
   ['admin-access.js', 'admin-access.js'],
+  ['login.html', 'login.html'],
+  ['login-preview.js', 'login-preview.js'],
+  ['session-preview.css', 'session-preview.css'],
+  ['session-preview.js', 'session-preview.js'],
 ];
 
 function gitBlobSha1(buffer) {
@@ -62,12 +58,9 @@ async function rebuildArchive() {
   for (const [name, expectedSha] of EXPECTED_PARTS) {
     const raw = await readFile(resolve(RELEASE_DIR, name));
     const actualSha = gitBlobSha1(raw);
-    if (actualSha !== expectedSha) {
-      throw new Error(`Parte corrompida: ${name}. Esperado ${expectedSha}, recebido ${actualSha}.`);
-    }
+    if (actualSha !== expectedSha) throw new Error(`Parte corrompida: ${name}. Esperado ${expectedSha}, recebido ${actualSha}.`);
     encoded.push(raw.toString('utf8'));
   }
-
   const archive = Buffer.from(encoded.join('').replace(/\s/g, ''), 'base64');
   const actualArchiveSha = createHash('sha256').update(archive).digest('hex');
   if (actualArchiveSha !== EXPECTED_ARCHIVE_SHA256) {
@@ -86,11 +79,9 @@ async function extractTar(tarBuffer) {
   await mkdir(OUTPUT_DIR, { recursive: true });
   let offset = 0;
   const extracted = [];
-
   while (offset + 512 <= tarBuffer.length) {
     const header = tarBuffer.subarray(offset, offset + 512);
     if (header.every((byte) => byte === 0)) break;
-
     const rawName = header.subarray(0, 100).toString('utf8').replace(/\0.*$/, '');
     const prefix = header.subarray(345, 500).toString('utf8').replace(/\0.*$/, '');
     const name = `${prefix ? `${prefix}/` : ''}${rawName}`.replace(/^\.\//, '');
@@ -98,35 +89,28 @@ async function extractTar(tarBuffer) {
     const type = String.fromCharCode(header[156] || 48);
     const dataStart = offset + 512;
     const dataEnd = dataStart + size;
-
     if (name && type !== '5') {
-      if (!RELEASE_ASSETS.includes(name)) {
-        throw new Error(`Arquivo inesperado no release público: ${name}`);
-      }
+      if (!RELEASE_ASSETS.includes(name)) throw new Error(`Arquivo inesperado no release público: ${name}`);
       const target = resolve(OUTPUT_DIR, name);
-      if (!target.startsWith(`${OUTPUT_DIR}${sep}`) && target !== OUTPUT_DIR) {
-        throw new Error(`Caminho inseguro no release: ${name}`);
-      }
+      if (!target.startsWith(`${OUTPUT_DIR}${sep}`) && target !== OUTPUT_DIR) throw new Error(`Caminho inseguro no release: ${name}`);
       await mkdir(dirname(target), { recursive: true });
       await writeFile(target, tarBuffer.subarray(dataStart, dataEnd));
       extracted.push(name);
     }
     offset = dataStart + Math.ceil(size / 512) * 512;
   }
-
   const missing = RELEASE_ASSETS.filter((asset) => !extracted.includes(asset));
-  if (missing.length) {
-    throw new Error(`Assets obrigatórios ausentes: ${missing.join(', ')}.`);
-  }
-  if (extracted.length !== RELEASE_ASSETS.length) {
-    throw new Error(`Quantidade inesperada de assets do ERP: ${extracted.length}.`);
-  }
+  if (missing.length) throw new Error(`Assets obrigatórios ausentes: ${missing.join(', ')}.`);
+  if (extracted.length !== RELEASE_ASSETS.length) throw new Error(`Quantidade inesperada de assets do ERP: ${extracted.length}.`);
 }
 
-async function installAccessPreview() {
-  for (const [source, target] of PREVIEW_ASSETS) {
-    await copyFile(resolve(PREVIEW_DIR, source), resolve(OUTPUT_DIR, target));
-  }
+async function installPreviewAssets() {
+  for (const [source, target] of PREVIEW_ASSETS) await copyFile(resolve(PREVIEW_DIR, source), resolve(OUTPUT_DIR, target));
+  const indexPath = resolve(OUTPUT_DIR, 'index.html');
+  let html = await readFile(indexPath, 'utf8');
+  if (!html.includes('/session-preview.css')) html = html.replace('</head>', '  <link rel="stylesheet" href="/session-preview.css">\n</head>');
+  if (!html.includes('/session-preview.js')) html = html.replace('</body>', '  <script src="/session-preview.js" defer></script>\n</body>');
+  await writeFile(indexPath, html);
 }
 
 async function validatePublicOutput() {
@@ -135,24 +119,32 @@ async function validatePublicOutput() {
     const content = await readFile(resolve(OUTPUT_DIR, asset));
     if (!content.length) throw new Error(`Asset público vazio: ${asset}.`);
   }
-  const page = await readFile(resolve(OUTPUT_DIR, 'admin-access.html'), 'utf8');
-  if (!page.includes('/admin-access.css') || !page.includes('/admin-access.js')) {
-    throw new Error('A Gestão de Acessos não referencia seus assets obrigatórios.');
+  const index = await readFile(resolve(OUTPUT_DIR, 'index.html'), 'utf8');
+  if (!index.includes('/session-preview.css') || !index.includes('/session-preview.js')) {
+    throw new Error('O ERP não recebeu os controles de sessão demonstrativa.');
   }
-  const script = await readFile(resolve(OUTPUT_DIR, 'admin-access.js'), 'utf8');
-  if (!script.includes('climaflux-access-preview-v1')) {
-    throw new Error('A Gestão de Acessos não contém a persistência funcional da prévia.');
+  const admin = await readFile(resolve(OUTPUT_DIR, 'admin-access.html'), 'utf8');
+  if (!admin.includes('logoutButton') || !admin.includes('/session-preview.js')) {
+    throw new Error('A Gestão de Acessos não recebeu o botão de saída.');
+  }
+  const login = await readFile(resolve(OUTPUT_DIR, 'login.html'), 'utf8');
+  if (!login.includes('enterDemoButton') || !login.includes('/login-preview.js')) {
+    throw new Error('A tela de entrada demonstrativa está incompleta.');
+  }
+  const sessionScript = await readFile(resolve(OUTPUT_DIR, 'session-preview.js'), 'utf8');
+  if (!sessionScript.includes('climaflux-preview-session-v1') || !sessionScript.includes('Sair do sistema')) {
+    throw new Error('O fluxo demonstrativo de sessão e saída está incompleto.');
   }
   return required.length;
 }
 
 try {
-  console.log('Preparando ClimaFlux ERP v0.6.1...');
+  console.log('Preparando ClimaFlux ERP v0.6.2...');
   const archive = await rebuildArchive();
   await extractTar(gunzipSync(archive));
-  await installAccessPreview();
+  await installPreviewAssets();
   const count = await validatePublicOutput();
-  console.log(`ClimaFlux ERP v0.6.1 validado: ${count} arquivo(s) públicos em ${OUTPUT_DIR}.`);
+  console.log(`ClimaFlux ERP v0.6.2 validado: ${count} arquivo(s) públicos em ${OUTPUT_DIR}.`);
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;
